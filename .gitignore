@@ -38,3 +38,8 @@ kobart_ckpt/
 *.pt
 *.onnx
 models/**/checkpoints/*
+*.bin
+*.safetensors
+*.pt
+*.onnx
+models/**/checkpoints/*
