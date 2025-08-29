@@ -1,6 +1,6 @@
 # routes/correct.py
 from __future__ import annotations
-import logging
+import logging, time
 
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException
@@ -32,6 +32,7 @@ def correct(payload: Dict[str, Any]) -> Dict[str, Any]:
     입력: AV-ASR 전체 JSON (segments[].text, nbest[].text 등)
     출력: segments[].{original, corrected, picked_candidate, gain}
     """
+    t0_all = time.time()
     try:
         segments = payload.get("segments", None)
         if not isinstance(segments, list):
@@ -95,6 +96,7 @@ def correct(payload: Dict[str, Any]) -> Dict[str, Any]:
                 # "nbest": nbest,
             })
 
+        logger.info(f"/ec/correct finished in {time.time()-t0_all:.2f}s for {len(out_segments)} segments")
         return {
             "request_id": payload.get("request_id"),
             "model_version": payload.get("model_version"),
