@@ -1,21 +1,69 @@
-"""
-보수적 후처리
-- 공백 정리, 문장부호 보강
-- 의미 손상 방지를 위해 약어/토큰 화이트리스트를 간단 보정
-"""
+# service/postprocess.py
 import re
 
-# 의미 보존을 위한 간단 화이트리스트(필요 시 확장)
-ALLOWLIST = {"AI","GPU","API","HTTP","URL","ms","MB","GB","KoBART"}
+_sent_split = re.compile(r'(?<=[.!?])\s+')
 
-def gentle_cleanup(src: str, dst: str) -> str:
-    # 약어/영문 토큰이 원문에 있는데 출력에 사라졌다면 간단 복구
-    for token in ALLOWLIST:
-        if token in src and token not in dst:
-            dst = dst.replace(token.lower(), token).replace(token.capitalize(), token)
-    # 연속 공백 정리
-    dst = re.sub(r"\s+", " ", dst).strip()
-    # 문장 끝 문장부호 보강(너무 짧은 텍스트는 제외)
-    if (not dst.endswith(("?", "!", "."))) and len(dst) > 1:
-        dst += "."
-    return dst
+def sent_split(s: str):
+    return [p.strip() for p in _sent_split.split(s.strip()) if p.strip()]
+
+def light_normalize(s: str) -> str:
+    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(r'([.!?])\1{1,}', r'\1', s)
+    s = s.replace(" ,", ",").replace(" .", ".").replace(" !", "!").replace(" ?", "?")
+    return s.strip()
+
+def prune_repeated_ngrams(text: str, n: int = 4, max_repeats: int = 1) -> str:
+    words = text.split()
+    if len(words) < n * (max_repeats + 1):
+        return text
+    seen = {}
+    keep_idx = len(words)
+    for i in range(len(words) - n + 1):
+        ng = tuple(words[i:i+n])
+        seen[ng] = seen.get(ng, 0) + 1
+        if seen[ng] > max_repeats:
+            keep_idx = i
+            break
+    return " ".join(words[:keep_idx]).strip()
+
+def postprocess_text(pred: str, n_src_sent: int | None = None, max_chars: int = 160, **kwargs) -> str:
+    """
+    하위호환: 이전 호출부가 n_src=... 를 넘겨도 동작하도록 처리.
+    - n_src_sent: 입력 문장(원문)의 문장 수 추정값
+    - max_chars: 최종 출력 최대 길이(문자)
+    """
+    # <- 중요: 예전 호출부 호환
+    if n_src_sent is None:
+        n_src_sent = kwargs.pop("n_src", None)
+    if n_src_sent is None:
+        n_src_sent = 1
+    try:
+        n_src_sent = max(1, int(n_src_sent))
+    except Exception:
+        n_src_sent = 1
+
+    # 1) 가벼운 정규화
+    pred = light_normalize(pred)
+
+    # 2) 문장 단위 중복 제거
+    parts = sent_split(pred)
+    dedup = []
+    for st in parts:
+        if not dedup or st != dedup[-1]:
+            dedup.append(st)
+
+    # 3) 문장 수 상한(입력+1, 최소2, 최대3)
+    cap = min(max(n_src_sent + 1, 2), 3)
+    keep, total = [], 0
+    for st in dedup:
+        if total + len(st) > max_chars:
+            break
+        keep.append(st)
+        total += len(st)
+        if len(keep) >= cap:
+            break
+    out = " ".join(keep) if keep else pred
+
+    # 4) n-gram 반복 컷 + 마지막 정리
+    out = prune_repeated_ngrams(out, n=4, max_repeats=1)
+    return light_normalize(out)

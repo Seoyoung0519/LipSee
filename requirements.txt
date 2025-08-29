@@ -1,5 +1,8 @@
-fastapi==0.115.2
-uvicorn[standard]==0.30.6
 pydantic>=2.7,<3
-transformers==4.42.4
+transformers>=4.39
 torch>=2.0
+safetensors
+fastapi
+uvicorn
+kiwipiepy
+g2pk
