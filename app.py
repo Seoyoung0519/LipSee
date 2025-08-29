@@ -17,8 +17,14 @@ async def lifespan(app: FastAPI):
     t0 = time.time()
     corr = get_corrector()  # KoBARTCorrector 싱글톤 로드
     with torch.no_grad():
-        _ = corr.model.generate(**corr.tok("테스트", return_tensors="pt"),
-                                max_new_tokens=4, num_beams=1, do_sample=False)
+        warmup_inputs = corr.tok("테스트", return_tensors="pt",return_token_type_ids=False)
+        # 혹시 토크나이저가 여전히 넣어주면 방어적으로 제거
+        warmup_inputs.pop("token_type_ids", None)
+        _ = corr.model.generate(
+            **warmup_inputs,
+            max_new_tokens=4, num_beams=1, do_sample=False
+        )
+        
     log.info(f"[startup] EC model/tokenizer ready in {time.time()-t0:.2f}s")
     yield
     # 종료 시 정리 필요하면 여기서
