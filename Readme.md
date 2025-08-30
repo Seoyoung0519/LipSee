@@ -99,29 +99,33 @@ POST /ec/correct
 ### 📥 입력 예시 (application/json)
 ```json
 {
-  "request_id": "req_20241226_143022_a1b2c3d4",
-  "model_version": { "av_asr": "av-asr-0.9.3" },
-  "segments": [
-    {
-      "id": "seg_00000",
-      "start": 0.0,
-      "end": 2.0,
-      "text": "지금부터 회웨을 시작하겠읍다",
-      "confidence": 0.893,
-      "no_speech_prob": 0.02,
-      "frame_entropy": 0.156,
-      "words": [
-        { "text": "지금부터", "t0": 0.0, "t1": 0.6, "logprob": -0.034, "confidence": 0.93 }
+    "request_id":"req_20241226_143022_a1b2c3d4",
+    "model_version":{"av_asr":"av-asr-0.9.3"},
+    "media":{"duration_sec":10.5,"sample_rate":16000,"fps":25},
+    "encoders":{"audio":{"name":"wav2vec2","frame_hop_ms":20,"feat_dim":768}},
+    "decoder":{"type":"enhanced_ctc_beam","beam_size":5,"lm_weight":0.6,"blank_id":0,"confidence_threshold":0.01},
+    "segments":[{
+      "id":"seg_00000",
+      "start":0.0,
+      "end":2.0,
+      "text":"지금부 훼의을 시작하겠읍다",
+      "confidence":0.893,
+      "no_speech_prob":0.02,
+      "frame_entropy":0.156,
+      "tokens":[
+	      {"text":"지금","t0":0.0,"t1":0.4,"f0":0,"f1":10,"logprob":-0.023,"confidence":0.95}
+	     ],
+      "words":[{"text":"지금부터","t0":0.0,"t1":0.6,"logprob":-0.034,"confidence":0.93}
       ],
-      "nbest": [
-        { "rank": 1, "text": "지금부터 회의를 시작하겠습니다", "score": -2.456, "confidence": 0.893 },
-        { "rank": 2, "text": "지금부터 홈페이지를 시작하겠습니다", "score": -4.123, "confidence": 0.156 }
+      "nbest":[
+        {"rank":1,"text":"지금부터 회의를 시작하겠습니다","score":-2.456,"confidence":0.893,"tokens":[]},
+        {"rank":2,"text":"지금부터 홈페이지를 시작하겠습니다","score":-4.123,"confidence":0.156,"tokens":[]}
       ]
-    }
-  ],
-  "hotwords": ["회의", "안건", "스프린트"],
-  "domain_lexicon": ["회의", "회의록", "프로젝트"]
-}
+     }
+    ],
+    "hotwords":["회의","안건","스프린트","킥오프"],
+    "domain_lexicon":["회의","회의실","회의록","발표","프로젝트"]
+ }
 ```
 
 ### 📤 출력 예시
