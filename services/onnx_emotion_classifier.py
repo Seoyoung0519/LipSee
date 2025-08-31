@@ -199,9 +199,20 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                     print(f"💻 로컬 환경 감지: {onnx_dir} 사용")
                 print(f"🔍 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
+                print(f"🔍 현재 작업 디렉토리: {os.getcwd()}")
+                print(f"🔍 /app 디렉토리 내용:")
+                if os.path.exists('/app'):
+                    import subprocess
+                    try:
+                        result = subprocess.run(['ls', '-la', '/app'], capture_output=True, text=True)
+                        print(result.stdout)
+                    except:
+                        print("폴더 내용 확인 실패")
+                else:
+                    print("❌ /app 디렉토리가 존재하지 않습니다")
+                
                 print(f"🔍 /app/onnx 폴더 내용:")
                 if os.path.exists('/app/onnx'):
-                    import subprocess
                     try:
                         result = subprocess.run(['ls', '-la', '/app/onnx'], capture_output=True, text=True)
                         print(result.stdout)
