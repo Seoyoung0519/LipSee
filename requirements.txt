@@ -1,11 +1,30 @@
-fastapi==0.115.2
-uvicorn==0.30.6
-pydantic==2.8.2
+# LipSee Emotion Classification API 의존성
+# FastAPI 기반 감정 분류 서비스
 
-# ONNX Runtime (PyTorch 대신)
-onnxruntime>=1.15.0
-tokenizers>=0.13.0
+# 웹 프레임워크
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 
-# 기타 필요한 패키지들
+# 데이터 처리 및 AI/ML
 numpy==1.24.3
-psutil>=5.8.0
+onnxruntime==1.16.3
+tokenizers==0.15.0
+
+# 데이터 검증 및 설정
+pydantic==2.5.0
+
+# 유틸리티
+python-multipart==0.0.6
+
+# 개발 및 테스트 (선택사항)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# 프로덕션 배포 (선택사항)
+gunicorn==21.2.0
+
+# 모델 파일 다운로드
+# wget https://your-hosting-url/model.int8.onnx -O onnx/model.int8.onnx
+# wget https://your-hosting-url/config.json -O onnx/config.json
+# wget https://your-hosting-url/tokenizer.json -O onnx/tokenizer.json
