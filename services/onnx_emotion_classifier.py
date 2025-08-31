@@ -8,6 +8,7 @@ from threading import Lock
 import os
 import json
 import numpy as np
+import subprocess
 
 from core.config import settings
 from schemas.emotions import ECRefinedSegment, ClassifiedSegment
@@ -185,8 +186,14 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
         with _onnx_model_lock:
             if _onnx_model_singleton is None:
                 # ONNX 모델 경로 설정 (환경에 따라 자동 선택)
-                # Render 환경: /var/data/onnx, 로컬 환경: 현재 작업 디렉토리 기준
-                if os.path.exists("/var/data/onnx"):
+                # 1순위: 환경변수 ONNX_MODEL_PATH
+                # 2순위: Render 환경 /var/data/onnx
+                # 3순위: 로컬 환경 onnx 폴더
+                env_onnx_path = os.getenv('ONNX_MODEL_PATH')
+                if env_onnx_path and os.path.exists(env_onnx_path):
+                    onnx_dir = env_onnx_path
+                    print(f"🔧 환경변수 사용: {onnx_dir}")
+                elif os.path.exists("/var/data/onnx"):
                     onnx_dir = "/var/data/onnx"
                     print("🚀 Render 환경 감지: /var/data/onnx 사용")
                 else:
@@ -194,8 +201,11 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                     current_dir = os.getcwd()
                     onnx_dir = os.path.join(current_dir, "LipSee", "onnx")
                     if not os.path.exists(onnx_dir):
-                        # 대안: services 폴더 기준 상대 경로
-                        onnx_dir = os.path.join(os.path.dirname(__file__), '..', 'onnx')
+                        # 대안: services 폴더 기준 상대 경로 (절대 경로로 변환)
+                        services_dir = os.path.dirname(os.path.abspath(__file__))
+                        onnx_dir = os.path.join(services_dir, '..', 'onnx')
+                        # 상대 경로를 절대 경로로 변환
+                        onnx_dir = os.path.abspath(onnx_dir)
                     print(f"💻 로컬 환경 감지: {onnx_dir} 사용")
                 print(f"🔍 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
@@ -203,6 +213,7 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                 print(f"🔍 /var/data/onnx 폴더 내용:")
                 if os.path.exists('/var/data/onnx'):
                     try:
+                        import subprocess
                         result = subprocess.run(['ls', '-la', '/var/data/onnx'], capture_output=True, text=True)
                         print(result.stdout)
                     except:
