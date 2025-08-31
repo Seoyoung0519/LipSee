@@ -184,11 +184,20 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
     if _onnx_model_singleton is None:
         with _onnx_model_lock:
             if _onnx_model_singleton is None:
-                # ONNX 모델 경로 설정 (Render 환경에서는 절대 경로 사용)
-                onnx_dir = "/app/onnx" if os.path.exists("/app/onnx") else os.path.join(os.path.dirname(__file__), '..', 'onnx')
+                # ONNX 모델 경로 설정 (Render 환경에서는 절대 경로 강제 사용)
+                onnx_dir = "/app/onnx"
                 print(f"🔍 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
-                print(f"🔍 /app/onnx 존재 여부: {os.path.exists('/app/onnx')}")
+                print(f"🔍 /app/onnx 폴더 내용:")
+                if os.path.exists('/app/onnx'):
+                    import subprocess
+                    try:
+                        result = subprocess.run(['ls', '-la', '/app/onnx'], capture_output=True, text=True)
+                        print(result.stdout)
+                    except:
+                        print("폴더 내용 확인 실패")
+                else:
+                    print("❌ /app/onnx 폴더가 존재하지 않습니다")
                 int8_path = os.path.join(onnx_dir, 'model.int8.onnx')
                 fp32_path = os.path.join(onnx_dir, 'model.onnx')
                 
