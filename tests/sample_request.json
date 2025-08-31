@@ -1,0 +1,26 @@
+{
+  "segments": [
+    {
+      "id": "seg_00001",
+      "start_ms": 0,
+      "end_ms": 1200,
+      "original": "안녕하세요 모두",
+      "corrected": "안녕하세요, 모두.",
+      "confidence": 0.9,
+      "words": [
+        {"start_ms": 0, "end_ms": 350, "text": "안녕하세요", "confidence": 0.88},
+        {"start_ms": 400, "end_ms": 1200, "text": "모두", "confidence": 0.92}
+      ]
+    },
+    {
+      "id": "seg_00002",
+      "start_ms": 1200,
+      "end_ms": 2500,
+      "original": "회의를 시작합니다",
+      "corrected": "회의를 시작합니다.",
+      "confidence": 0.87,
+      "words": null
+    }
+  ],
+  "final_prefix_emotion": true
+}
