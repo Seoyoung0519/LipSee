@@ -8,9 +8,13 @@ services:
       # Google Drive에서 ONNX 모델 파일 다운로드
       apt-get update && apt-get install -y wget
       mkdir -p onnx
-      # Google Drive에서 ONNX 모델 파일들 다운로드
-      # 폴더 링크: https://drive.google.com/drive/folders/1Gx2LdUJ95hLjCddjr_wbQdY10pJ_owSR
-      gdown "https://drive.google.com/uc?id=1Gx2LdUJ95hLjCddjr_wbQdY10pJ_owSR" --folder -O /app/onnx/
+      # Google Drive에서 ONNX 모델 파일들 개별 다운로드
+      # model.int8.onnx: https://drive.google.com/file/d/1OVytw_Rbh0zjkkjfjkAEWgTUxluFmYIh/view?usp=drive_link
+      # config.json: https://drive.google.com/file/d/1lpddoLZOzXKGpEinMCx3kx8kg2c3lPgp/view?usp=drive_link
+      # tokenizer.json: https://drive.google.com/file/d/1e0FHSh0dUqpI1n_ibhFusyvUgjtzi-Eu/view?usp=drive_link
+      gdown "https://drive.google.com/uc?id=1OVytw_Rbh0zjkkjfjkAEWgTUxluFmYIh" -O /app/onnx/model.int8.onnx
+      gdown "https://drive.google.com/uc?id=1lpddoLZOzXKGpEinMCx3kx8kg2c3lPgp" -O /app/onnx/config.json
+      gdown "https://drive.google.com/uc?id=1e0FHSh0dUqpI1n_ibhFusyvUgjtzi-Eu" -O /app/onnx/tokenizer.json
       echo "ONNX 모델 파일들 다운로드 완료"
       # 다운로드된 파일들 확인
       ls -la /app/onnx/

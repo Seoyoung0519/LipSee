@@ -184,10 +184,11 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
     if _onnx_model_singleton is None:
         with _onnx_model_lock:
             if _onnx_model_singleton is None:
-                # ONNX 모델 경로 설정 (환경변수 우선, 없으면 상대 경로)
-                onnx_dir = os.getenv('ONNX_MODEL_PATH', os.path.join(os.path.dirname(__file__), '..', 'onnx'))
+                # ONNX 모델 경로 설정 (Render 환경에서는 절대 경로 사용)
+                onnx_dir = "/app/onnx" if os.path.exists("/app/onnx") else os.path.join(os.path.dirname(__file__), '..', 'onnx')
                 print(f"🔍 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
+                print(f"🔍 /app/onnx 존재 여부: {os.path.exists('/app/onnx')}")
                 int8_path = os.path.join(onnx_dir, 'model.int8.onnx')
                 fp32_path = os.path.join(onnx_dir, 'model.onnx')
                 
