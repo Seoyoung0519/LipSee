@@ -13,8 +13,12 @@ services:
       echo "의존성 설치 완료"
       
       echo "=== 시스템 패키지 설치 시작 ==="
-      apt-get update && apt-get install -y wget unzip curl
+      apt-get update && apt-get install -y wget unzip curl git
       echo "시스템 패키지 설치 완료"
+      
+      echo "=== gdown 설치 시작 ==="
+      pip install gdown
+      echo "gdown 설치 완료"
       
       echo "=== ONNX 모델 다운로드 준비 ==="
       mkdir -p /var/data/onnx
@@ -28,29 +32,60 @@ services:
         echo "=== ONNX ZIP 다운로드 시작 ==="
         echo "다운로드 URL: $ONNX_ZIP_URL"
         
-        # 다운로드 시도
-        if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
-          echo "ZIP 다운로드 성공"
-          echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
-          
-          echo "=== 압축 해제 시작 ==="
-          if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
-            echo "압축 해제 성공"
-            echo "=== 압축 해제된 파일 목록 ==="
-            ls -la /var/data/onnx/
-            echo "=== 파일 개수 ==="
-            find /var/data/onnx/ -type f | wc -l
+        # Google Drive ID 추출
+        DRIVE_ID=$(echo "$ONNX_ZIP_URL" | grep -o '[a-zA-Z0-9_-]\{33,\}' | head -1)
+        echo "추출된 Drive ID: $DRIVE_ID"
+        
+        if [ -n "$DRIVE_ID" ]; then
+          echo "=== gdown으로 다운로드 시도 ==="
+          if gdown "https://drive.google.com/uc?id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
+            echo "ZIP 다운로드 성공 (gdown)"
+            echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
+            
+            echo "=== 압축 해제 시작 ==="
+            if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
+              echo "압축 해제 성공"
+              echo "=== 압축 해제된 파일 목록 ==="
+              ls -la /var/data/onnx/
+              echo "=== 파일 개수 ==="
+              find /var/data/onnx/ -type f | wc -l
+            else
+              echo "ERROR: 압축 해제 실패"
+              exit 1
+            fi
+            
+            echo "=== 임시 파일 정리 ==="
+            rm -f /tmp/onnx_models.zip
+            echo "정리 완료"
           else
-            echo "ERROR: 압축 해제 실패"
-            exit 1
+            echo "ERROR: gdown 다운로드 실패, wget으로 재시도"
+            if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
+              echo "ZIP 다운로드 성공 (wget)"
+              echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
+              
+              echo "=== 압축 해제 시작 ==="
+              if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
+                echo "압축 해제 성공"
+                echo "=== 압축 해제된 파일 목록 ==="
+                ls -la /var/data/onnx/
+                echo "=== 파일 개수 ==="
+                find /var/data/onnx/ -type f | wc -l
+              else
+                echo "ERROR: 압축 해제 실패"
+                exit 1
+              fi
+              
+              echo "=== 임시 파일 정리 ==="
+              rm -f /tmp/onnx_models.zip
+              echo "정리 완료"
+            else
+              echo "ERROR: 모든 다운로드 방법 실패"
+              echo "wget 종료 코드: $?"
+              exit 1
+            fi
           fi
-          
-          echo "=== 임시 파일 정리 ==="
-          rm -f /tmp/onnx_models.zip
-          echo "정리 완료"
         else
-          echo "ERROR: ZIP 다운로드 실패"
-          echo "wget 종료 코드: $?"
+          echo "ERROR: Google Drive ID를 추출할 수 없음"
           exit 1
         fi
       else
