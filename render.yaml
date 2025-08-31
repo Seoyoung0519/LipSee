@@ -4,21 +4,61 @@ services:
     env: python
     plan: starter
     buildCommand: |
+      echo "=== 빌드 시작 ==="
+      echo "현재 디렉토리: $(pwd)"
+      echo "Python 버전: $(python --version)"
+      
+      echo "=== 의존성 설치 시작 ==="
       pip install -r requirements.txt
-      # Google Drive에서 ONNX 모델 파일 다운로드
-      apt-get update && apt-get install -y wget
-      mkdir -p onnx
-      # Google Drive에서 ONNX 모델 파일들 개별 다운로드
-      # model.int8.onnx: https://drive.google.com/file/d/1OVytw_Rbh0zjkkjfjkAEWgTUxluFmYIh/view?usp=drive_link
-      # config.json: https://drive.google.com/file/d/1lpddoLZOzXKGpEinMCx3kx8kg2c3lPgp/view?usp=drive_link
-      # tokenizer.json: https://drive.google.com/file/d/1e0FHSh0dUqpI1n_ibhFusyvUgjtzi-Eu/view?usp=drive_link
-      gdown "https://drive.google.com/uc?id=1OVytw_Rbh0zjkkjfjkAEWgTUxluFmYIh" -O /app/onnx/model.int8.onnx
-      gdown "https://drive.google.com/uc?id=1lpddoLZOzXKGpEinMCx3kx8kg2c3lPgp" -O /app/onnx/config.json
-      gdown "https://drive.google.com/uc?id=1e0FHSh0dUqpI1n_ibhFusyvUgjtzi-Eu" -O /app/onnx/tokenizer.json
-      echo "ONNX 모델 파일들 다운로드 완료"
-      # 다운로드된 파일들 확인
-      ls -la /app/onnx/
-      echo "현재 작업 디렉토리: $(pwd)"
+      echo "의존성 설치 완료"
+      
+      echo "=== 시스템 패키지 설치 시작 ==="
+      apt-get update && apt-get install -y wget unzip curl
+      echo "시스템 패키지 설치 완료"
+      
+      echo "=== ONNX 모델 다운로드 준비 ==="
+      mkdir -p /var/data/onnx
+      echo "ONNX 디렉토리 생성: /var/data/onnx"
+      
+      # 환경변수 확인
+      echo "ONNX_ZIP_URL: $ONNX_ZIP_URL"
+      echo "MODEL_TYPE: $MODEL_TYPE"
+      
+      if [ -n "$ONNX_ZIP_URL" ]; then
+        echo "=== ONNX ZIP 다운로드 시작 ==="
+        echo "다운로드 URL: $ONNX_ZIP_URL"
+        
+        # 다운로드 시도
+        if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
+          echo "ZIP 다운로드 성공"
+          echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
+          
+          echo "=== 압축 해제 시작 ==="
+          if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
+            echo "압축 해제 성공"
+            echo "=== 압축 해제된 파일 목록 ==="
+            ls -la /var/data/onnx/
+            echo "=== 파일 개수 ==="
+            find /var/data/onnx/ -type f | wc -l
+          else
+            echo "ERROR: 압축 해제 실패"
+            exit 1
+          fi
+          
+          echo "=== 임시 파일 정리 ==="
+          rm -f /tmp/onnx_models.zip
+          echo "정리 완료"
+        else
+          echo "ERROR: ZIP 다운로드 실패"
+          echo "wget 종료 코드: $?"
+          exit 1
+        fi
+      else
+        echo "ERROR: ONNX_ZIP_URL 환경변수가 설정되지 않음"
+        exit 1
+      fi
+      
+      echo "=== 빌드 완료 ==="
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: PYTHON_VERSION
@@ -34,7 +74,11 @@ services:
       - key: USE_BATCH
         value: "false"
       - key: ONNX_MODEL_PATH
-        value: "/app/onnx"  # ONNX 모델 폴더 절대 경로
+        value: "/var/data/onnx"  # ONNX 모델 폴더 절대 경로
+      - key: ONNX_STORAGE_ROOT
+        value: "/var/data/onnx"  # ONNX 저장소 루트
+      - key: ONNX_ZIP_URL
+        value: "https://drive.google.com/uc?export=download&id=1_U_CzzD6wQKd9OLvcLj1ntE-tm4oJwTC"
     healthCheckPath: /health
     autoDeploy: true
     numInstances: 1
