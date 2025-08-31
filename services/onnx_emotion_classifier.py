@@ -184,8 +184,19 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
     if _onnx_model_singleton is None:
         with _onnx_model_lock:
             if _onnx_model_singleton is None:
-                # ONNX 모델 경로 설정 (Render 환경에서는 절대 경로 강제 사용)
-                onnx_dir = "/app/onnx"
+                # ONNX 모델 경로 설정 (환경에 따라 자동 선택)
+                # Render 환경: /app/onnx, 로컬 환경: 현재 작업 디렉토리 기준
+                if os.path.exists("/app/onnx"):
+                    onnx_dir = "/app/onnx"
+                    print("🚀 Render 환경 감지: /app/onnx 사용")
+                else:
+                    # 로컬 환경: 현재 작업 디렉토리에서 onnx 폴더 찾기
+                    current_dir = os.getcwd()
+                    onnx_dir = os.path.join(current_dir, "LipSee", "onnx")
+                    if not os.path.exists(onnx_dir):
+                        # 대안: services 폴더 기준 상대 경로
+                        onnx_dir = os.path.join(os.path.dirname(__file__), '..', 'onnx')
+                    print(f"💻 로컬 환경 감지: {onnx_dir} 사용")
                 print(f"🔍 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
                 print(f"🔍 /app/onnx 폴더 내용:")
