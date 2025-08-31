@@ -1,0 +1,33 @@
+@"
+# IDE/OS
+.idea/
+.vscode/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Local envs / big deps
+.venv/
+.venv*/
+.veev/
+env/
+venv/
+**/site-packages/
+**/.ipynb_checkpoints/
+
+# exclude big local projects (원하면 조정)
+AV-ASR/
+Whisper_Encoder/
+PythonProject/
+LipSee_ECmodel/
+EC_model_localtest/
+EC_model_localtest.zip
+"@ | Out-File -Encoding utf8 .gitignore
+
+git add .gitignore
+git commit -m "chore: add .gitignore to exclude non-orchestrator folders"

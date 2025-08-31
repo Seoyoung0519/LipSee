@@ -1,0 +1,33 @@
+{
+  "av_asr": {
+    "base_url": "",
+    "warmup": [
+      { "method": "GET", "path": "/v1/enhanced_info" }
+    ]
+  },
+  "ec": {
+    "base_url": "https://ecmodel.onrender.com",
+    "warmup": [
+      { "method": "GET", "path": "/v2/health" },
+      { "method": "GET", "path": "/healthz" },
+      { "method": "GET", "path": "/" }
+    ]
+  },
+  "emotion": {
+    "base_url": "https://emotion-model-qdbs.onrender.com",
+    "warmup": [
+      { "method": "GET", "path": "/health" }
+    ],
+    "defaults": {
+      "final_prefix_emotion": true,
+      "srt_format": "file",       
+      "srt_filename": "meeting_emotion.srt"
+    }
+  },
+  "http": {
+    "timeout_seconds": 180,
+    "retry_max": 3,
+    "retry_backoff_seconds": 2.0,
+    "download_limit_mb": 800
+  }
+}
