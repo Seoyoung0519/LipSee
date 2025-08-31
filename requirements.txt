@@ -15,6 +15,7 @@ pydantic==2.5.0
 
 # 유틸리티
 python-multipart==0.0.6
+gdown==4.7.1
 
 # 개발 및 테스트 (선택사항)
 pytest==7.4.3

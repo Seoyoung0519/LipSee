@@ -5,8 +5,13 @@ services:
     plan: starter
     buildCommand: |
       pip install -r requirements.txt
-      # ONNX 모델 파일 확인 (사전 다운로드 불필요)
-      echo "ONNX 모델 사용 - 별도 다운로드 불필요"
+      # Google Drive에서 ONNX 모델 파일 다운로드
+      apt-get update && apt-get install -y wget
+      mkdir -p onnx
+      # Google Drive에서 ONNX 모델 파일들 다운로드
+      # 폴더 링크: https://drive.google.com/drive/folders/1Gx2LdUJ95hLjCddjr_wbQdY10pJ_owSR
+      gdown "https://drive.google.com/uc?id=1Gx2LdUJ95hLjCddjr_wbQdY10pJ_owSR" --folder -O onnx/
+      echo "ONNX 모델 파일들 다운로드 완료"
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: PYTHON_VERSION
