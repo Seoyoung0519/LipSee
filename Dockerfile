@@ -20,3 +20,6 @@ EXPOSE 10000
 
 # 애플리케이션 실행
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
+
+ENV ONNX_ZIP_URL=https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0
+CMD bash -lc 'uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1'

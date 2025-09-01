@@ -215,32 +215,17 @@ def _pick_onnx_root() -> str:
 
 
 def _download_if_missing(onnx_dir: str):
-    """
-    ONNX_ZIP_URL은 '베이스 URL'이어야 함.
-    예) https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0
-    위 BASE_URL/<파일명> 으로 FILES 배열을 개별 다운로드한다.
-    """
-    base = os.getenv("ONNX_ZIP_URL", "").rstrip("/")
-    if not base:
-        logging.warning("ONNX_ZIP_URL 비어 있음 — 자동 다운로드 생략")
-        return
-
+    import urllib.request, os
+    FILES = ["model.onnx", "model.int8.onnx", "config.json", "tokenizer.json"]
+    base = (os.getenv("ONNX_ZIP_URL") or
+            os.getenv("ONNX_BASE_URL") or
+            "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0").rstrip("/")
     for fname in FILES:
         url = f"{base}/{fname}"
         dst = os.path.join(onnx_dir, fname)
         if os.path.isfile(dst):
-            logging.info(f"skip: {dst} 이미 존재")
             continue
-
-        try:
-            logging.info(f"DL {url} -> {dst}")
-            urllib.request.urlretrieve(url, dst)
-        except Exception as e:
-            logging.exception(f"다운로드 실패: {url} -> {dst} ({e})")
-            # 최소한 model.onnx는 반드시 필요하므로, 그게 실패하면 즉시 에러
-            if fname == "model.onnx":
-                raise
-
+        urllib.request.urlretrieve(url, dst)
 
 def _get_onnx_model() -> ONNXEmotionClassifier:
     """ONNX 모델 싱글톤 인스턴스 반환"""
