@@ -29,63 +29,93 @@ services:
       echo "MODEL_TYPE: $MODEL_TYPE"
       
       if [ -n "$ONNX_ZIP_URL" ]; then
-        echo "=== ONNX ZIP 다운로드 시작 ==="
+        echo "=== ONNX 모델 다운로드 시작 ==="
         echo "다운로드 URL: $ONNX_ZIP_URL"
         
-        # Google Drive ID 추출
-        DRIVE_ID=$(echo "$ONNX_ZIP_URL" | grep -o '[a-zA-Z0-9_-]\{33,\}' | head -1)
-        echo "추출된 Drive ID: $DRIVE_ID"
-        
-        if [ -n "$DRIVE_ID" ]; then
-          echo "=== gdown으로 다운로드 시도 ==="
-          if gdown "https://drive.google.com/uc?id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
-            echo "ZIP 다운로드 성공 (gdown)"
-            echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
-            
-            echo "=== 압축 해제 시작 ==="
-            if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
-              echo "압축 해제 성공"
-              echo "=== 압축 해제된 파일 목록 ==="
-              ls -la /var/data/onnx/
-              echo "=== 파일 개수 ==="
-              find /var/data/onnx/ -type f | wc -l
-            else
-              echo "ERROR: 압축 해제 실패"
-              exit 1
-            fi
-            
-            echo "=== 임시 파일 정리 ==="
-            rm -f /tmp/onnx_models.zip
-            echo "정리 완료"
+        # GitHub Releases URL인지 확인
+        if [[ "$ONNX_ZIP_URL" == *"github.com"* ]]; then
+          echo "=== GitHub Releases 다운로드 ==="
+          if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
+            echo "✅ GitHub 다운로드 성공"
+            DOWNLOAD_SUCCESS=true
           else
-            echo "ERROR: gdown 다운로드 실패, wget으로 재시도"
-            if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
-              echo "ZIP 다운로드 성공 (wget)"
-              echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
-              
-              echo "=== 압축 해제 시작 ==="
-              if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
-                echo "압축 해제 성공"
-                echo "=== 압축 해제된 파일 목록 ==="
-                ls -la /var/data/onnx/
-                echo "=== 파일 개수 ==="
-                find /var/data/onnx/ -type f | wc -l
-              else
-                echo "ERROR: 압축 해제 실패"
-                exit 1
-              fi
-              
-              echo "=== 임시 파일 정리 ==="
-              rm -f /tmp/onnx_models.zip
-              echo "정리 완료"
-            else
-              echo "ERROR: 모든 다운로드 방법 실패"
-              echo "wget 종료 코드: $?"
-              exit 1
-            fi
+            echo "❌ GitHub 다운로드 실패"
+            DOWNLOAD_SUCCESS=false
           fi
         else
-          echo "ERROR: Google Drive ID를 추출할 수 없음"
+          # Google Drive ID 추출
+          DRIVE_ID=$(echo "$ONNX_ZIP_URL" | grep -o '[a-zA-Z0-9_-]\{33,\}' | head -1)
+          echo "추출된 Drive ID: $DRIVE_ID"
+          
+          if [ -n "$DRIVE_ID" ]; then
+            echo "=== Google Drive 다운로드 시도 (여러 방법) ==="
+            
+            # 방법 1: gdown (가장 안정적)
+            echo "방법 1: gdown 시도"
+            if gdown "https://drive.google.com/uc?id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
+              echo "✅ gdown 다운로드 성공"
+              DOWNLOAD_SUCCESS=true
+            else
+              echo "❌ gdown 실패, 방법 2 시도"
+              DOWNLOAD_SUCCESS=false
+            fi
+            
+            # 방법 2: wget with Google Drive direct link
+            if [ "$DOWNLOAD_SUCCESS" = false ]; then
+              echo "방법 2: wget with direct link 시도"
+              if wget --progress=bar:force:noscroll "https://drive.google.com/uc?export=download&id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
+                echo "✅ wget direct link 성공"
+                DOWNLOAD_SUCCESS=true
+              else
+                echo "❌ wget direct link 실패, 방법 3 시도"
+                DOWNLOAD_SUCCESS=false
+              fi
+            fi
+            
+            # 방법 3: curl with Google Drive direct link
+            if [ "$DOWNLOAD_SUCCESS" = false ]; then
+              echo "방법 3: curl with direct link 시도"
+              if curl -L "https://drive.google.com/uc?export=download&id=$DRIVE_ID" -o /tmp/onnx_models.zip; then
+                echo "✅ curl direct link 성공"
+                DOWNLOAD_SUCCESS=true
+              else
+                echo "❌ curl direct link 실패"
+                DOWNLOAD_SUCCESS=false
+              fi
+            fi
+          else
+            echo "ERROR: Google Drive ID를 추출할 수 없음"
+            DOWNLOAD_SUCCESS=false
+          fi
+        fi
+        
+        if [ "$DOWNLOAD_SUCCESS" = true ]; then
+          echo "ZIP 다운로드 성공"
+          echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
+          
+          echo "=== 압축 해제 시작 ==="
+          if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
+            echo "압축 해제 성공"
+            echo "=== 압축 해제된 파일 목록 ==="
+            ls -la /var/data/onnx/
+            echo "=== 파일 개수 ==="
+            find /var/data/onnx/ -type f | wc -l
+            
+            echo "=== /app/onnx 폴더에도 복사 ==="
+            mkdir -p /app/onnx
+            cp -r /var/data/onnx/* /app/onnx/
+            echo "복사 완료: /app/onnx"
+            ls -la /app/onnx/
+          else
+            echo "ERROR: 압축 해제 실패"
+            exit 1
+          fi
+          
+          echo "=== 임시 파일 정리 ==="
+          rm -f /tmp/onnx_models.zip
+          echo "정리 완료"
+        else
+          echo "ERROR: 모든 다운로드 방법 실패"
           exit 1
         fi
       else
@@ -113,7 +143,7 @@ services:
       - key: ONNX_STORAGE_ROOT
         value: "/var/data/onnx"  # ONNX 저장소 루트
       - key: ONNX_ZIP_URL
-        value: "https://drive.google.com/uc?export=download&id=1_U_CzzD6wQKd9OLvcLj1ntE-tm4oJwTC"
+        value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0/onnx_models.zip"
     healthCheckPath: /health
     autoDeploy: true
     numInstances: 1

@@ -190,6 +190,8 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                 # 2순위: Render 환경 /var/data/onnx
                 # 3순위: 로컬 환경 onnx 폴더
                 env_onnx_path = os.getenv('ONNX_MODEL_PATH')
+                print(f"🔍 환경변수 ONNX_MODEL_PATH 원본값: {repr(env_onnx_path)}")
+                
                 if env_onnx_path and os.path.exists(env_onnx_path):
                     onnx_dir = env_onnx_path
                     print(f"🔧 환경변수 사용: {onnx_dir}")
@@ -207,13 +209,24 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                         # 상대 경로를 절대 경로로 변환
                         onnx_dir = os.path.abspath(onnx_dir)
                     print(f"💻 로컬 환경 감지: {onnx_dir} 사용")
-                print(f"🔍 ONNX 모델 경로: {onnx_dir}")
+                
+                print(f"🔍 최종 ONNX 모델 경로: {onnx_dir}")
+                print(f"🔍 해당 경로 존재 여부: {os.path.exists(onnx_dir)}")
+                if os.path.exists(onnx_dir):
+                    print(f"🔍 해당 경로 내용:")
+                    try:
+                        result = subprocess.run(['ls', '-la', onnx_dir], capture_output=True, text=True)
+                        print(result.stdout)
+                    except Exception as e:
+                        print(f"폴더 내용 확인 실패: {e}")
+                else:
+                    print(f"❌ 경로가 존재하지 않음: {onnx_dir}")
+                
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
                 print(f"🔍 현재 작업 디렉토리: {os.getcwd()}")
                 print(f"🔍 /var/data/onnx 폴더 내용:")
                 if os.path.exists('/var/data/onnx'):
                     try:
-                        import subprocess
                         result = subprocess.run(['ls', '-la', '/var/data/onnx'], capture_output=True, text=True)
                         print(result.stdout)
                     except:
