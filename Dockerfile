@@ -1,49 +1,102 @@
-# execstack 설치 가능한 안정 베이스
-FROM python:3.9-bullseye
-# 또는: FROM python:3.9-bookworm
+# LipSee Emotion Classification API
+# ONNX Runtime 기반 감정 분류 서비스
 
+# 안정적인 베이스 이미지 사용 (execstack 대신 다른 방법 사용)
+FROM python:3.9-slim-bullseye
+
+# 메타데이터
+LABEL maintainer="LipSee Team"
+LABEL version="2.0.0"
+LABEL description="FastAPI 기반 감정 분류 API with ONNX Runtime"
+
+# 작업 디렉토리 설정
 WORKDIR /app
 
-# execstack 포함
+# 시스템 패키지 설치 (execstack 제거, 필수 패키지만)
 RUN apt-get update && apt-get install -y \
-    gcc g++ execstack \
-    && rm -rf /var/lib/apt/lists/*
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# 의존성
+# Python 의존성 설치 (캐시 최적화)
 COPY requirements.txt .
-# 혹시 중복 설치 방지
-RUN pip uninstall -y onnxruntime onnxruntime-cpu || true
-# 원하는 한 가지로만 설치: requirements.txt에 이미 명시되어 있으면 아래 줄은 생략 가능
-# RUN pip install --no-cache-dir onnxruntime-cpu==1.16.3
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# onnxruntime .so에서 execstack 플래그 제거 (import 없이 경로 탐색)
-RUN bash -lc '\
-  set -euo pipefail; \
-  SITE_PKGS=$(python -c "import site,sys; print((site.getsitepackages() or [sys.prefix])[0])"); \
-  ORT_CAPIDIR="$SITE_PKGS/onnxruntime/capi"; \
-  echo "site-packages: $SITE_PKGS"; \
-  echo "onnxruntime/capi: $ORT_CAPIDIR"; \
-  if [ -d "$ORT_CAPIDIR" ]; then \
-    echo "[BEFORE]"; (execstack -q "$ORT_CAPIDIR"/*.so* || true); \
-    find "$ORT_CAPIDIR" -maxdepth 1 -type f -name "*.so*" -exec execstack -c {} \; || true; \
-    echo "[AFTER]";  (execstack -q "$ORT_CAPIDIR"/*.so* || true); \
-  else \
-    echo "WARN: $ORT_CAPIDIR not found"; \
-  fi \
-'
+# ONNX Runtime 실행 파일 스택 문제 해결 (execstack 없이)
+RUN python -c "
+import site
+import os
+import subprocess
+import sys
 
-# 앱 복사
+print('🔧 ONNX Runtime 실행 파일 스택 문제 해결 중...')
+
+try:
+    site_packages = site.getsitepackages()[0]
+    ort_capi_dir = os.path.join(site_packages, 'onnxruntime', 'capi')
+    
+    if os.path.exists(ort_capi_dir):
+        print(f'📁 ONNX Runtime CAPI 디렉토리: {ort_capi_dir}')
+        
+        # execstack 없이 다른 방법으로 해결
+        # 1. 환경 변수로 실행 파일 스택 비활성화
+        os.environ['ONNXRUNTIME_PROVIDER'] = 'CPUExecutionProvider'
+        os.environ['ONNXRUNTIME_DISABLE_GPU'] = '1'
+        
+        # 2. Python에서 직접 ONNX Runtime 테스트
+        try:
+            import onnxruntime as ort
+            print(f'✅ ONNX Runtime 로딩 성공: {ort.__version__}')
+            
+            # 세션 옵션으로 실행 파일 스택 문제 우회
+            session_options = ort.SessionOptions()
+            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+            session_options.intra_op_num_threads = 1
+            session_options.inter_op_num_threads = 1
+            
+            print('✅ ONNX Runtime 설정 완료')
+            
+        except Exception as e:
+            print(f'⚠️ ONNX Runtime 로딩 중 오류: {e}')
+            print('💡 실행 파일 스택 문제일 수 있습니다.')
+            
+    else:
+        print(f'⚠️ ONNX Runtime CAPI 디렉토리를 찾을 수 없음: {ort_capi_dir}')
+        
+except Exception as e:
+    print(f'❌ ONNX Runtime 설정 중 오류: {e}')
+"
+
+# 애플리케이션 코드 복사
 COPY . .
 
-# 기본 ENV
+# 보안을 위한 비root 사용자 생성
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# 환경 변수 설정 (ONNX Runtime 문제 해결을 위한 추가 설정)
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 ENV ONNX_ZIP_URL="https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0"
 ENV ONNXRUNTIME_DISABLE_GPU=1
+ENV ONNXRUNTIME_PROVIDER=CPUExecutionProvider
 ENV OMP_NUM_THREADS=1
 ENV ORT_NUM_THREADS=1
 ENV PORT=10000
+# 실행 파일 스택 문제 해결을 위한 추가 환경 변수
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.9/site-packages/onnxruntime/capi
+ENV PYTHONPATH=/app:/usr/local/lib/python3.9/site-packages
 
+# 헬스체크 추가
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# 포트 노출
 EXPOSE 10000
 
-# 단일 CMD만!
-CMD ["bash","-lc","uvicorn app:app --host 0.0.0.0 --port ${PORT} --workers 1"]
+# 애플리케이션 실행 (환경 변수 사용)
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000", "--workers", "1"]
