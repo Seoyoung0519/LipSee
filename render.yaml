@@ -42,39 +42,31 @@ services:
     startCommand: |
       bash -lc '
         set -euo pipefail
-        echo "=== START MARK === (should appear at boot)"
-        mkdir -p /app/onnx
-        BASE_URL="${ONNX_ZIP_URL:-}"
-        echo "ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}"
-        echo "ONNX_ZIP_URL=${BASE_URL}"
+        echo "=== START PATCH: clear execstack on ORT .so (no-import)==="
 
-        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
+        # runtime 컨테이너에도 execstack 설치 (빌드/런타임 분리 대비)
+        apt-get update && apt-get install -y execstack >/dev/null 2>&1 || true
 
-        NEED_DL=false
-        [ -f /app/onnx/model.onnx ] || NEED_DL=true
+        SITE_PKGS=$(python -c "import site,sys; print((site.getsitepackages() or [sys.prefix])[0])")
+        ORT_CAPIDIR="$SITE_PKGS/onnxruntime/capi"
+        echo "site-packages: $SITE_PKGS"
+        echo "onnxruntime/capi: $ORT_CAPIDIR"
 
-        if $NEED_DL; then
-          if [ -z "$BASE_URL" ]; then
-            echo "ERROR: ONNX_ZIP_URL empty"; exit 1
-          fi
-          for f in "${FILES[@]}"; do
-            [ -f "/app/onnx/$f" ] && { echo "skip existing $f"; continue; }
-            echo "DL: $BASE_URL/$f -> /app/onnx/$f"
-            if ! wget -q --show-progress -nc "$BASE_URL/$f" -O "/app/onnx/$f"; then
-              echo "wget failed, trying curl: $f"
-              curl -fL "$BASE_URL/$f" -o "/app/onnx/$f"
-            fi
-          done
+        if [ -d "$ORT_CAPIDIR" ]; then
+          echo "[BEFORE] execstack flags:"
+          (execstack -q "$ORT_CAPIDIR"/*.so* || true)
+          # 플래그 제거
+          find "$ORT_CAPIDIR" -maxdepth 1 -type f -name "*.so*" -exec execstack -c {} \; || true
+          echo "[AFTER] execstack flags:"
+          (execstack -q "$ORT_CAPIDIR"/*.so* || true)
         else
-          echo "models exist; skip download"
+          echo "WARN: $ORT_CAPIDIR not found, skip execstack patch"
         fi
 
-        echo "=== LIST /app/onnx ==="
-        ls -la /app/onnx || true
-
-        echo "=== UVICORN ==="
+        echo "=== START SERVER ==="
         uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
       '
+
 
 
     envVars:
