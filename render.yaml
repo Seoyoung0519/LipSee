@@ -28,75 +28,30 @@ services:
       echo "ONNX_ZIP_URL: $ONNX_ZIP_URL"
       echo "MODEL_TYPE: $MODEL_TYPE"
       
-      if [ -n "$ONNX_ZIP_URL" ]; then
-        echo "=== ONNX 모델 다운로드 시작 ==="
-        echo "다운로드 URL: $ONNX_ZIP_URL"
-        
-        # GitHub Releases URL인지 확인
-        if [[ "$ONNX_ZIP_URL" == *"github.com"* ]]; then
-          echo "=== GitHub Releases 다운로드 ==="
-          if wget --progress=bar:force:noscroll "$ONNX_ZIP_URL" -O /tmp/onnx_models.zip; then
-            echo "✅ GitHub 다운로드 성공"
-            DOWNLOAD_SUCCESS=true
-          else
-            echo "❌ GitHub 다운로드 실패"
-            DOWNLOAD_SUCCESS=false
-          fi
-        else
-          # Google Drive ID 추출
-          DRIVE_ID=$(echo "$ONNX_ZIP_URL" | grep -o '[a-zA-Z0-9_-]\{33,\}' | head -1)
-          echo "추출된 Drive ID: $DRIVE_ID"
+              if [ -n "$ONNX_ZIP_URL" ]; then
+          echo "=== 개별 ONNX 모델 파일 다운로드 시작 ==="
           
-          if [ -n "$DRIVE_ID" ]; then
-            echo "=== Google Drive 다운로드 시도 (여러 방법) ==="
-            
-            # 방법 1: gdown (가장 안정적)
-            echo "방법 1: gdown 시도"
-            if gdown "https://drive.google.com/uc?id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
-              echo "✅ gdown 다운로드 성공"
-              DOWNLOAD_SUCCESS=true
+          # GitHub Releases URL에서 기본 경로 추출
+          BASE_URL="$ONNX_ZIP_URL"
+          echo "기본 URL: $BASE_URL"
+          
+          # 개별 파일들 다운로드
+          FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
+          DOWNLOAD_SUCCESS=true
+          
+          for file in "${FILES[@]}"; do
+            echo "다운로드 중: $file"
+            if wget --progress=bar:force:noscroll "$BASE_URL/$file" -O "/var/data/onnx/$file"; then
+              echo "✅ $file 다운로드 성공"
             else
-              echo "❌ gdown 실패, 방법 2 시도"
+              echo "❌ $file 다운로드 실패"
               DOWNLOAD_SUCCESS=false
             fi
-            
-            # 방법 2: wget with Google Drive direct link
-            if [ "$DOWNLOAD_SUCCESS" = false ]; then
-              echo "방법 2: wget with direct link 시도"
-              if wget --progress=bar:force:noscroll "https://drive.google.com/uc?export=download&id=$DRIVE_ID" -O /tmp/onnx_models.zip; then
-                echo "✅ wget direct link 성공"
-                DOWNLOAD_SUCCESS=true
-              else
-                echo "❌ wget direct link 실패, 방법 3 시도"
-                DOWNLOAD_SUCCESS=false
-              fi
-            fi
-            
-            # 방법 3: curl with Google Drive direct link
-            if [ "$DOWNLOAD_SUCCESS" = false ]; then
-              echo "방법 3: curl with direct link 시도"
-              if curl -L "https://drive.google.com/uc?export=download&id=$DRIVE_ID" -o /tmp/onnx_models.zip; then
-                echo "✅ curl direct link 성공"
-                DOWNLOAD_SUCCESS=true
-              else
-                echo "❌ curl direct link 실패"
-                DOWNLOAD_SUCCESS=false
-              fi
-            fi
-          else
-            echo "ERROR: Google Drive ID를 추출할 수 없음"
-            DOWNLOAD_SUCCESS=false
-          fi
-        fi
-        
-        if [ "$DOWNLOAD_SUCCESS" = true ]; then
-          echo "ZIP 다운로드 성공"
-          echo "파일 크기: $(ls -lh /tmp/onnx_models.zip)"
+          done
           
-          echo "=== 압축 해제 시작 ==="
-          if unzip -o /tmp/onnx_models.zip -d /var/data/onnx/; then
-            echo "압축 해제 성공"
-            echo "=== 압축 해제된 파일 목록 ==="
+          if [ "$DOWNLOAD_SUCCESS" = true ]; then
+            echo "모든 파일 다운로드 성공"
+            echo "=== 다운로드된 파일 목록 ==="
             ls -la /var/data/onnx/
             echo "=== 파일 개수 ==="
             find /var/data/onnx/ -type f | wc -l
@@ -107,17 +62,9 @@ services:
             echo "복사 완료: /app/onnx"
             ls -la /app/onnx/
           else
-            echo "ERROR: 압축 해제 실패"
+            echo "ERROR: 일부 파일 다운로드 실패"
             exit 1
           fi
-          
-          echo "=== 임시 파일 정리 ==="
-          rm -f /tmp/onnx_models.zip
-          echo "정리 완료"
-        else
-          echo "ERROR: 모든 다운로드 방법 실패"
-          exit 1
-        fi
       else
         echo "ERROR: ONNX_ZIP_URL 환경변수가 설정되지 않음"
         exit 1
@@ -143,7 +90,7 @@ services:
       - key: ONNX_STORAGE_ROOT
         value: "/var/data/onnx"  # ONNX 저장소 루트
       - key: ONNX_ZIP_URL
-        value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0/onnx_models.zip"
+        value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0"
     healthCheckPath: /health
     autoDeploy: true
     numInstances: 1
