@@ -3,91 +3,54 @@ services:
     name: lipsee-emotion-api
     env: python
     plan: starter
+
     buildCommand: |
       set -euo pipefail
-      echo "=== 빌드 시작 ==="
-      echo "현재 디렉토리: $(pwd)"
-      python --version || true
-
-      echo "=== 시스템 패키지 설치 ==="
-      apt-get update && apt-get install -y wget curl unzip git && rm -rf /var/lib/apt/lists/*
-
-      echo "=== 파이썬 의존성 설치 ==="
+      echo "=== BUILD: deps ==="
+      apt-get update && apt-get install -y wget curl git && rm -rf /var/lib/apt/lists/*
       pip install --no-cache-dir -r requirements.txt
-      pip install --no-cache-dir gdown
-
-      echo "=== ONNX 모델 다운로드 ==="
+      echo "=== BUILD: download ONNX into /app/onnx ==="
       mkdir -p /app/onnx
-      echo "ONNX_ZIP_URL: ${ONNX_ZIP_URL:-}"
-      echo "MODEL_TYPE: ${MODEL_TYPE:-}"
-
-      if [ -n "${ONNX_ZIP_URL:-}" ]; then
-        BASE_URL="${ONNX_ZIP_URL}"
-        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
-        echo "기본 URL: $BASE_URL"
-        for file in "${FILES[@]}"; do
-          echo "다운로드: $BASE_URL/$file -> /app/onnx/$file"
-          if ! wget -q --show-progress "$BASE_URL/$file" -O "/app/onnx/$file"; then
-            echo "wget 실패, curl 재시도: $file"
-            curl -fL "$BASE_URL/$file" -o "/app/onnx/$file"
-          fi
-        done
-        echo "다운로드된 파일:"
-        ls -la /app/onnx
-      else
-        echo "ERROR: ONNX_ZIP_URL 미설정"
-        exit 1
+      BASE_URL="${ONNX_ZIP_URL:-}"
+      echo "ONNX_ZIP_URL=$BASE_URL"
+      if [ -z "$BASE_URL" ]; then
+        echo "ERROR: ONNX_ZIP_URL is empty"; exit 1
       fi
+      for f in model.onnx model.int8.onnx config.json tokenizer.json; do
+        echo "DL: $BASE_URL/$f -> /app/onnx/$f"
+        if ! wget -q --show-progress -nc "$BASE_URL/$f" -O "/app/onnx/$f"; then
+          echo "wget failed, trying curl: $f"
+          curl -fL "$BASE_URL/$f" -o "/app/onnx/$f"
+        fi
+      done
+      echo "=== BUILD: list /app/onnx ==="
+      ls -la /app/onnx
 
-      echo "=== 빌드 완료 ==="
     startCommand: |
       bash -lc '
         set -euo pipefail
-
-        echo "=== Prestart: ONNX 모델 확인/다운로드 ==="
+        echo "=== START: ensure /app/onnx exists & files present ==="
         mkdir -p /app/onnx
         BASE_URL="${ONNX_ZIP_URL:-}"
-        echo "ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}"
-        echo "ONNX_STORAGE_ROOT=${ONNX_STORAGE_ROOT:-}"
-        echo "ONNX_ZIP_URL=${BASE_URL}"
-
-        # 파일 목록: 릴리스에 올라간 실제 파일명과 맞춰주세요
-        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
-
-        # 모델이 없으면 다운로드
         NEED_DL=false
-        if [ ! -f "/app/onnx/model.onnx" ]; then
-          NEED_DL=true
-        fi
-
-        if $NEED_DL ; then
-          if [ -z "$BASE_URL" ]; then
-            echo "ERROR: ONNX_ZIP_URL 환경변수가 비어 있어 다운로드 불가"
-            exit 1
-          fi
-
-          echo "모델이 없어 다운로드를 시작합니다. BASE_URL=$BASE_URL"
-          for f in "${FILES[@]}"; do
-            # 있어도 덮어쓰지 않음: -nc 옵션 (wget), curl은 존재하면 스킵
-            if [ -f "/app/onnx/$f" ]; then
-              echo "skip: /app/onnx/$f 이미 존재"
-              continue
-            fi
-
-            echo "다운로드: $BASE_URL/$f -> /app/onnx/$f"
+        [ -f /app/onnx/model.onnx ] || NEED_DL=true
+        if $NEED_DL; then
+          echo "model.onnx not found; downloading at start"
+          if [ -z "$BASE_URL" ]; then echo "ERROR: ONNX_ZIP_URL empty"; exit 1; fi
+          for f in model.onnx model.int8.onnx config.json tokenizer.json; do
+            [ -f "/app/onnx/$f" ] && { echo "skip existing $f"; continue; }
+            echo "DL: $BASE_URL/$f -> /app/onnx/$f"
             if ! wget -q --show-progress -nc "$BASE_URL/$f" -O "/app/onnx/$f"; then
-              echo "wget 실패, curl 재시도: $f"
+              echo "wget failed, trying curl: $f"
               curl -fL "$BASE_URL/$f" -o "/app/onnx/$f"
             fi
           done
         else
-          echo "모델이 이미 있습니다. 다운로드 생략"
+          echo "models already exist; skipping download"
         fi
-
-        echo "=== /app/onnx 목록 ==="
+        echo "=== START: list /app/onnx ==="
         ls -la /app/onnx || true
-
-        echo "=== Uvicorn 시작 ==="
+        echo "=== START: launch uvicorn ==="
         uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
       '
 
@@ -98,18 +61,19 @@ services:
         value: 10000
       - key: MODEL_TYPE
         value: "onnx"
+      - key: ONNX_MODEL_PATH
+        value: "/app/onnx"          # ← 중요
+      - key: ONNX_STORAGE_ROOT
+        value: "/app/onnx"          # ← 중요
+      - key: ONNX_ZIP_URL
+        value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0"
       - key: SRT_DEFAULT_FILENAME
         value: "emotion_subtitles.srt"
       - key: MAX_LENGTH
         value: "128"
       - key: USE_BATCH
         value: "false"
-      - key: ONNX_MODEL_PATH
-        value: "/app/onnx"              # ← 변경
-      - key: ONNX_STORAGE_ROOT
-        value: "/app/onnx"              # ← 변경
-      - key: ONNX_ZIP_URL
-        value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0"
+
     healthCheckPath: /health
     autoDeploy: true
     numInstances: 1

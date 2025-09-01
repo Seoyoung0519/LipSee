@@ -187,7 +187,7 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
             if _onnx_model_singleton is None:
                 # ONNX 모델 경로 설정 (환경에 따라 자동 선택)
                 # 1순위: 환경변수 ONNX_MODEL_PATH
-                # 2순위: Render 환경 /var/data/onnx
+                # 2순위: /app/onnx (Render 환경)
                 # 3순위: 로컬 환경 onnx 폴더
                 env_onnx_path = os.getenv('ONNX_MODEL_PATH')
                 print(f"🔍 환경변수 ONNX_MODEL_PATH 원본값: {repr(env_onnx_path)}")
@@ -195,9 +195,9 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                 if env_onnx_path and os.path.exists(env_onnx_path):
                     onnx_dir = env_onnx_path
                     print(f"🔧 환경변수 사용: {onnx_dir}")
-                elif os.path.exists("/var/data/onnx"):
-                    onnx_dir = "/var/data/onnx"
-                    print("🚀 Render 환경 감지: /var/data/onnx 사용")
+                elif os.path.exists("/app/onnx"):
+                    onnx_dir = "/app/onnx"
+                    print("🚀 Render 환경 감지: /app/onnx 사용")
                 else:
                     # 로컬 환경: 현재 작업 디렉토리에서 onnx 폴더 찾기
                     current_dir = os.getcwd()
@@ -224,15 +224,15 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
                 
                 print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
                 print(f"🔍 현재 작업 디렉토리: {os.getcwd()}")
-                print(f"🔍 /var/data/onnx 폴더 내용:")
-                if os.path.exists('/var/data/onnx'):
+                print(f"🔍 /app/onnx 폴더 내용:")
+                if os.path.exists('/app/onnx'):
                     try:
-                        result = subprocess.run(['ls', '-la', '/var/data/onnx'], capture_output=True, text=True)
+                        result = subprocess.run(['ls', '-la', '/app/onnx'], capture_output=True, text=True)
                         print(result.stdout)
                     except:
                         print("폴더 내용 확인 실패")
                 else:
-                    print("❌ /var/data/onnx 폴더가 존재하지 않습니다")
+                    print("❌ /app/onnx 폴더가 존재하지 않습니다")
                 int8_path = os.path.join(onnx_dir, 'model.int8.onnx')
                 fp32_path = os.path.join(onnx_dir, 'model.onnx')
                 
