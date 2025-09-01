@@ -40,7 +40,57 @@ services:
       fi
 
       echo "=== 빌드 완료 ==="
-    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+    startCommand: |
+      bash -lc '
+        set -euo pipefail
+
+        echo "=== Prestart: ONNX 모델 확인/다운로드 ==="
+        mkdir -p /app/onnx
+        BASE_URL="${ONNX_ZIP_URL:-}"
+        echo "ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}"
+        echo "ONNX_STORAGE_ROOT=${ONNX_STORAGE_ROOT:-}"
+        echo "ONNX_ZIP_URL=${BASE_URL}"
+
+        # 파일 목록: 릴리스에 올라간 실제 파일명과 맞춰주세요
+        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
+
+        # 모델이 없으면 다운로드
+        NEED_DL=false
+        if [ ! -f "/app/onnx/model.onnx" ]; then
+          NEED_DL=true
+        fi
+
+        if $NEED_DL ; then
+          if [ -z "$BASE_URL" ]; then
+            echo "ERROR: ONNX_ZIP_URL 환경변수가 비어 있어 다운로드 불가"
+            exit 1
+          fi
+
+          echo "모델이 없어 다운로드를 시작합니다. BASE_URL=$BASE_URL"
+          for f in "${FILES[@]}"; do
+            # 있어도 덮어쓰지 않음: -nc 옵션 (wget), curl은 존재하면 스킵
+            if [ -f "/app/onnx/$f" ]; then
+              echo "skip: /app/onnx/$f 이미 존재"
+              continue
+            fi
+
+            echo "다운로드: $BASE_URL/$f -> /app/onnx/$f"
+            if ! wget -q --show-progress -nc "$BASE_URL/$f" -O "/app/onnx/$f"; then
+              echo "wget 실패, curl 재시도: $f"
+              curl -fL "$BASE_URL/$f" -o "/app/onnx/$f"
+            fi
+          done
+        else
+          echo "모델이 이미 있습니다. 다운로드 생략"
+        fi
+
+        echo "=== /app/onnx 목록 ==="
+        ls -la /app/onnx || true
+
+        echo "=== Uvicorn 시작 ==="
+        uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+      '
+
     envVars:
       - key: PYTHON_VERSION
         value: 3.9
