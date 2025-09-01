@@ -26,49 +26,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # ONNX Runtime 실행 파일 스택 문제 해결 (execstack 없이)
-RUN python -c "
-import site
-import os
-import subprocess
-import sys
+RUN python -c "import site; import os; import sys; print('🔧 ONNX Runtime 실행 파일 스택 문제 해결 중...'); site_packages = site.getsitepackages()[0]; ort_capi_dir = os.path.join(site_packages, 'onnxruntime', 'capi'); print(f'📁 ONNX Runtime CAPI 디렉토리: {ort_capi_dir}') if os.path.exists(ort_capi_dir) else print(f'⚠️ ONNX Runtime CAPI 디렉토리를 찾을 수 없음: {ort_capi_dir}')"
 
-print('🔧 ONNX Runtime 실행 파일 스택 문제 해결 중...')
-
-try:
-    site_packages = site.getsitepackages()[0]
-    ort_capi_dir = os.path.join(site_packages, 'onnxruntime', 'capi')
-    
-    if os.path.exists(ort_capi_dir):
-        print(f'📁 ONNX Runtime CAPI 디렉토리: {ort_capi_dir}')
-        
-        # execstack 없이 다른 방법으로 해결
-        # 1. 환경 변수로 실행 파일 스택 비활성화
-        os.environ['ONNXRUNTIME_PROVIDER'] = 'CPUExecutionProvider'
-        os.environ['ONNXRUNTIME_DISABLE_GPU'] = '1'
-        
-        # 2. Python에서 직접 ONNX Runtime 테스트
-        try:
-            import onnxruntime as ort
-            print(f'✅ ONNX Runtime 로딩 성공: {ort.__version__}')
-            
-            # 세션 옵션으로 실행 파일 스택 문제 우회
-            session_options = ort.SessionOptions()
-            session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
-            session_options.intra_op_num_threads = 1
-            session_options.inter_op_num_threads = 1
-            
-            print('✅ ONNX Runtime 설정 완료')
-            
-        except Exception as e:
-            print(f'⚠️ ONNX Runtime 로딩 중 오류: {e}')
-            print('💡 실행 파일 스택 문제일 수 있습니다.')
-            
-    else:
-        print(f'⚠️ ONNX Runtime CAPI 디렉토리를 찾을 수 없음: {ort_capi_dir}')
-        
-except Exception as e:
-    print(f'❌ ONNX Runtime 설정 중 오류: {e}')
-"
+# ONNX Runtime 테스트 및 설정
+RUN python -c "import onnxruntime as ort; print(f'✅ ONNX Runtime 로딩 성공: {ort.__version__}'); session_options = ort.SessionOptions(); session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC; session_options.intra_op_num_threads = 1; session_options.inter_op_num_threads = 1; print('✅ ONNX Runtime 설정 완료')"
 
 # 애플리케이션 코드 복사
 COPY . .
