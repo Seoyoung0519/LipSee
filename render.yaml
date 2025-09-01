@@ -28,43 +28,55 @@ services:
       echo "ONNX_ZIP_URL: $ONNX_ZIP_URL"
       echo "MODEL_TYPE: $MODEL_TYPE"
       
-              if [ -n "$ONNX_ZIP_URL" ]; then
-          echo "=== 개별 ONNX 모델 파일 다운로드 시작 ==="
-          
-          # GitHub Releases URL에서 기본 경로 추출
-          BASE_URL="$ONNX_ZIP_URL"
-          echo "기본 URL: $BASE_URL"
-          
-          # 개별 파일들 다운로드
-          FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
-          DOWNLOAD_SUCCESS=true
-          
-          for file in "${FILES[@]}"; do
-            echo "다운로드 중: $file"
-            if wget --progress=bar:force:noscroll "$BASE_URL/$file" -O "/var/data/onnx/$file"; then
-              echo "✅ $file 다운로드 성공"
+      if [ -n "$ONNX_ZIP_URL" ]; then
+        echo "=== 개별 ONNX 모델 파일 다운로드 시작 ==="
+        
+        # GitHub Releases URL에서 기본 경로 추출
+        BASE_URL="$ONNX_ZIP_URL"
+        echo "기본 URL: $BASE_URL"
+        
+        # 개별 파일들 다운로드
+        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
+        DOWNLOAD_SUCCESS=true
+        
+        echo "다운로드할 파일 목록: ${FILES[@]}"
+        echo "기본 URL: $BASE_URL"
+        
+        for file in "${FILES[@]}"; do
+          echo "=== $file 다운로드 시작 ==="
+          echo "다운로드 URL: $BASE_URL/$file"
+          echo "저장 경로: /var/data/onnx/$file"
+          # wget으로 먼저 시도
+          if wget --progress=bar:force:noscroll "$BASE_URL/$file" -O "/var/data/onnx/$file"; then
+            echo "SUCCESS: $file 다운로드 성공 (wget)"
+          else
+            echo "FAILED: wget 실패, curl로 재시도"
+            # curl로 재시도
+            if curl -L "$BASE_URL/$file" -o "/var/data/onnx/$file"; then
+              echo "SUCCESS: $file 다운로드 성공 (curl)"
             else
-              echo "❌ $file 다운로드 실패"
+              echo "ERROR: $file 다운로드 실패 (모든 방법)"
               DOWNLOAD_SUCCESS=false
             fi
-          done
-          
-          if [ "$DOWNLOAD_SUCCESS" = true ]; then
-            echo "모든 파일 다운로드 성공"
-            echo "=== 다운로드된 파일 목록 ==="
-            ls -la /var/data/onnx/
-            echo "=== 파일 개수 ==="
-            find /var/data/onnx/ -type f | wc -l
-            
-            echo "=== /app/onnx 폴더에도 복사 ==="
-            mkdir -p /app/onnx
-            cp -r /var/data/onnx/* /app/onnx/
-            echo "복사 완료: /app/onnx"
-            ls -la /app/onnx/
-          else
-            echo "ERROR: 일부 파일 다운로드 실패"
-            exit 1
           fi
+        done
+        
+        if [ "$DOWNLOAD_SUCCESS" = true ]; then
+          echo "모든 파일 다운로드 성공"
+          echo "=== 다운로드된 파일 목록 ==="
+          ls -la /var/data/onnx/
+          echo "=== 파일 개수 ==="
+          find /var/data/onnx/ -type f | wc -l
+          
+          echo "=== /app/onnx 폴더에도 복사 ==="
+          mkdir -p /app/onnx
+          cp -r /var/data/onnx/* /app/onnx/
+          echo "복사 완료: /app/onnx"
+          ls -la /app/onnx/
+        else
+          echo "ERROR: 일부 파일 다운로드 실패"
+          exit 1
+        fi
       else
         echo "ERROR: ONNX_ZIP_URL 환경변수가 설정되지 않음"
         exit 1
@@ -78,17 +90,17 @@ services:
       - key: PORT
         value: 10000
       - key: MODEL_TYPE
-        value: "onnx"  # ONNX 모델 사용
+        value: "onnx"
       - key: SRT_DEFAULT_FILENAME
         value: "emotion_subtitles.srt"
       - key: MAX_LENGTH
-        value: "128"  # 원래 값으로 복원
+        value: "128"
       - key: USE_BATCH
         value: "false"
       - key: ONNX_MODEL_PATH
-        value: "/var/data/onnx"  # ONNX 모델 폴더 절대 경로
+        value: "/var/data/onnx"
       - key: ONNX_STORAGE_ROOT
-        value: "/var/data/onnx"  # ONNX 저장소 루트
+        value: "/var/data/onnx"
       - key: ONNX_ZIP_URL
         value: "https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0"
     healthCheckPath: /health
