@@ -15,7 +15,6 @@ pydantic==2.5.0
 
 # 유틸리티
 python-multipart==0.0.6
-gdown==4.7.1
 
 # 개발 및 테스트 (선택사항)
 pytest==7.4.3
@@ -25,7 +24,6 @@ httpx==0.25.2
 # 프로덕션 배포 (선택사항)
 gunicorn==21.2.0
 
-# 모델 파일 다운로드
-# wget https://your-hosting-url/model.int8.onnx -O onnx/model.int8.onnx
-# wget https://your-hosting-url/config.json -O onnx/config.json
-# wget https://your-hosting-url/tokenizer.json -O onnx/tokenizer.json
+# 모델 파일 자동 다운로드
+# GitHub Releases에서 urllib.request로 자동 다운로드
+# ONNX_ZIP_URL 환경변수로 설정된 베이스 URL에서 개별 파일 다운로드

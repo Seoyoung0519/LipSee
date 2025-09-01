@@ -9,6 +9,10 @@ import os
 import json
 import numpy as np
 import subprocess
+import urllib.request
+import logging
+
+FILES = ["model.onnx", "model.int8.onnx", "config.json", "tokenizer.json"]
 
 from core.config import settings
 from schemas.emotions import ECRefinedSegment, ClassifiedSegment
@@ -178,6 +182,66 @@ class ONNXEmotionClassifier:
         exp_x = np.exp(x - np.max(x))
         return exp_x / np.sum(exp_x)
 
+def _pick_onnx_root() -> str:
+    """
+    ONNX 모델 디렉토리 선택 & 생성
+    우선순위:
+      1) /app/onnx (컨테이너/Render 환경에서 가장 안전)
+      2) 환경변수 ONNX_MODEL_PATH
+      3) settings.BASE_DIR/onnx (로컬 개발)
+      4) services 기준 상대경로 ../onnx (최후)
+    """
+    candidates = [
+        "/app/onnx",
+        os.getenv("ONNX_MODEL_PATH"),
+        os.path.join(getattr(settings, "BASE_DIR", os.getcwd()), "onnx"),
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "onnx")),
+    ]
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            os.makedirs(candidate, exist_ok=True)
+            return candidate
+        except Exception:
+            # 권한 문제 등으로 실패할 수 있으니 다음 후보로
+            continue
+
+    # 정말 모든 후보가 실패하면, 현재 작업 디렉토리의 onnx로
+    fallback = os.path.join(os.getcwd(), "onnx")
+    os.makedirs(fallback, exist_ok=True)
+    return fallback
+
+
+def _download_if_missing(onnx_dir: str):
+    """
+    ONNX_ZIP_URL은 '베이스 URL'이어야 함.
+    예) https://github.com/Seoyoung0519/LipSee/releases/download/v1.0.0
+    위 BASE_URL/<파일명> 으로 FILES 배열을 개별 다운로드한다.
+    """
+    base = os.getenv("ONNX_ZIP_URL", "").rstrip("/")
+    if not base:
+        logging.warning("ONNX_ZIP_URL 비어 있음 — 자동 다운로드 생략")
+        return
+
+    for fname in FILES:
+        url = f"{base}/{fname}"
+        dst = os.path.join(onnx_dir, fname)
+        if os.path.isfile(dst):
+            logging.info(f"skip: {dst} 이미 존재")
+            continue
+
+        try:
+            logging.info(f"DL {url} -> {dst}")
+            urllib.request.urlretrieve(url, dst)
+        except Exception as e:
+            logging.exception(f"다운로드 실패: {url} -> {dst} ({e})")
+            # 최소한 model.onnx는 반드시 필요하므로, 그게 실패하면 즉시 에러
+            if fname == "model.onnx":
+                raise
+
+
 def _get_onnx_model() -> ONNXEmotionClassifier:
     """ONNX 모델 싱글톤 인스턴스 반환"""
     global _onnx_model_singleton
@@ -185,76 +249,57 @@ def _get_onnx_model() -> ONNXEmotionClassifier:
     if _onnx_model_singleton is None:
         with _onnx_model_lock:
             if _onnx_model_singleton is None:
-                # ONNX 모델 경로 설정 (환경에 따라 자동 선택)
-                # 1순위: 환경변수 ONNX_MODEL_PATH
-                # 2순위: /app/onnx (Render 환경)
-                # 3순위: 로컬 환경 onnx 폴더
-                env_onnx_path = os.getenv('ONNX_MODEL_PATH')
-                print(f"🔍 환경변수 ONNX_MODEL_PATH 원본값: {repr(env_onnx_path)}")
-                
-                if env_onnx_path and os.path.exists(env_onnx_path):
-                    onnx_dir = env_onnx_path
-                    print(f"🔧 환경변수 사용: {onnx_dir}")
-                elif os.path.exists("/app/onnx"):
-                    onnx_dir = "/app/onnx"
-                    print("🚀 Render 환경 감지: /app/onnx 사용")
-                else:
-                    # 로컬 환경: 현재 작업 디렉토리에서 onnx 폴더 찾기
-                    current_dir = os.getcwd()
-                    onnx_dir = os.path.join(current_dir, "LipSee", "onnx")
-                    if not os.path.exists(onnx_dir):
-                        # 대안: services 폴더 기준 상대 경로 (절대 경로로 변환)
-                        services_dir = os.path.dirname(os.path.abspath(__file__))
-                        onnx_dir = os.path.join(services_dir, '..', 'onnx')
-                        # 상대 경로를 절대 경로로 변환
-                        onnx_dir = os.path.abspath(onnx_dir)
-                    print(f"💻 로컬 환경 감지: {onnx_dir} 사용")
-                
+                # === [CHANGE] 경로 선택 + 자동 다운로드 보장 ====================
+                # 항상 /app/onnx 우선 생성/사용 → 없으면 만들어 쓰고, 없으면 받는다
+                onnx_dir = _pick_onnx_root()
+
                 print(f"🔍 최종 ONNX 모델 경로: {onnx_dir}")
                 print(f"🔍 해당 경로 존재 여부: {os.path.exists(onnx_dir)}")
-                if os.path.exists(onnx_dir):
-                    print(f"🔍 해당 경로 내용:")
-                    try:
-                        result = subprocess.run(['ls', '-la', onnx_dir], capture_output=True, text=True)
-                        print(result.stdout)
-                    except Exception as e:
-                        print(f"폴더 내용 확인 실패: {e}")
-                else:
-                    print(f"❌ 경로가 존재하지 않음: {onnx_dir}")
-                
-                print(f"🔍 환경변수 ONNX_MODEL_PATH: {os.getenv('ONNX_MODEL_PATH')}")
-                print(f"🔍 현재 작업 디렉토리: {os.getcwd()}")
-                print(f"🔍 /app/onnx 폴더 내용:")
-                if os.path.exists('/app/onnx'):
-                    try:
-                        result = subprocess.run(['ls', '-la', '/app/onnx'], capture_output=True, text=True)
-                        print(result.stdout)
-                    except:
-                        print("폴더 내용 확인 실패")
-                else:
-                    print("❌ /app/onnx 폴더가 존재하지 않습니다")
+
+                # model.onnx가 없다면, 릴리스에서 즉시 내려받기
+                if not os.path.isfile(os.path.join(onnx_dir, "model.onnx")):
+                    print("📥 model.onnx이 없어 자동 다운로드 시도")
+                    _download_if_missing(onnx_dir)
+
+                # 디버그 출력
+                try:
+                    print("🔍 디렉토리 목록:")
+                    result = subprocess.run(['ls', '-la', onnx_dir], capture_output=True, text=True)
+                    print(result.stdout)
+                except Exception as e:
+                    print(f"폴더 내용 확인 실패: {e}")
+
                 int8_path = os.path.join(onnx_dir, 'model.int8.onnx')
                 fp32_path = os.path.join(onnx_dir, 'model.onnx')
-                
-                # 양자화된 모델이 있으면 사용, 없으면 기본 모델 사용
+
                 if os.path.exists(int8_path):
                     onnx_path = int8_path
                     print(f"🚀 양자화된 int8 모델 사용: {int8_path}")
                 else:
                     onnx_path = fp32_path
                     print(f"📊 기본 fp32 모델 사용: {fp32_path}")
-                
+
                 config_path = os.path.join(onnx_dir, 'config.json')
                 tokenizer_path = os.path.join(onnx_dir, 'tokenizer.json')
-                
-                # 파일 존재 확인
-                if not all(os.path.exists(p) for p in [onnx_path, config_path, tokenizer_path]):
-                    raise FileNotFoundError(f"ONNX 모델 파일을 찾을 수 없습니다: {onnx_dir}")
-                
-                _onnx_model_singleton = ONNXEmotionClassifier(
-                    onnx_path, config_path, tokenizer_path
-                )
-    
+
+                # 최종 존재 검증(실패 시 파일 목록 포함하여 에러)
+                missing = [p for p in [onnx_path, config_path, tokenizer_path] if not os.path.exists(p)]
+                if missing:
+                    try:
+                        listing = ", ".join(os.listdir(onnx_dir))
+                    except Exception:
+                        listing = "(dir unreadable)"
+                    raise FileNotFoundError(
+                        f"ONNX 모델 파일을 찾을 수 없습니다.\n"
+                        f"- base dir: {onnx_dir}\n"
+                        f"- missing: {missing}\n"
+                        f"- files: {listing}\n"
+                        f"- ONNX_ZIP_URL={os.getenv('ONNX_ZIP_URL','')}"
+                    )
+                # ===============================================================
+
+                _onnx_model_singleton = ONNXEmotionClassifier(onnx_path, config_path, tokenizer_path)
+
     return _onnx_model_singleton
 
 def classify_segments(

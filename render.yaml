@@ -8,6 +8,7 @@ services:
       set -euo pipefail
       echo "=== BUILD: deps ==="
       apt-get update && apt-get install -y wget curl git && rm -rf /var/lib/apt/lists/*
+      echo "=== 파이썬 의존성 설치 ==="
       pip install --no-cache-dir -r requirements.txt
       echo "=== BUILD: download ONNX into /app/onnx ==="
       mkdir -p /app/onnx
@@ -29,15 +30,22 @@ services:
     startCommand: |
       bash -lc '
         set -euo pipefail
-        echo "=== START: ensure /app/onnx exists & files present ==="
+        echo "=== START MARK === (should appear at boot)"
         mkdir -p /app/onnx
         BASE_URL="${ONNX_ZIP_URL:-}"
+        echo "ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}"
+        echo "ONNX_ZIP_URL=${BASE_URL}"
+
+        FILES=("model.onnx" "model.int8.onnx" "config.json" "tokenizer.json")
+
         NEED_DL=false
         [ -f /app/onnx/model.onnx ] || NEED_DL=true
+
         if $NEED_DL; then
-          echo "model.onnx not found; downloading at start"
-          if [ -z "$BASE_URL" ]; then echo "ERROR: ONNX_ZIP_URL empty"; exit 1; fi
-          for f in model.onnx model.int8.onnx config.json tokenizer.json; do
+          if [ -z "$BASE_URL" ]; then
+            echo "ERROR: ONNX_ZIP_URL empty"; exit 1
+          fi
+          for f in "${FILES[@]}"; do
             [ -f "/app/onnx/$f" ] && { echo "skip existing $f"; continue; }
             echo "DL: $BASE_URL/$f -> /app/onnx/$f"
             if ! wget -q --show-progress -nc "$BASE_URL/$f" -O "/app/onnx/$f"; then
@@ -46,13 +54,16 @@ services:
             fi
           done
         else
-          echo "models already exist; skipping download"
+          echo "models exist; skip download"
         fi
-        echo "=== START: list /app/onnx ==="
+
+        echo "=== LIST /app/onnx ==="
         ls -la /app/onnx || true
-        echo "=== START: launch uvicorn ==="
+
+        echo "=== UVICORN ==="
         uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
       '
+
 
     envVars:
       - key: PYTHON_VERSION
