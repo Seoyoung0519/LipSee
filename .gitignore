@@ -37,7 +37,7 @@ ENV/
 Thumbs.db
 
 # Model files (자동 다운로드되므로 제외)
-models/
+# models/  # server/models 폴더는 코드이므로 포함
 *.bin
 *.safetensors
 *.onnx
