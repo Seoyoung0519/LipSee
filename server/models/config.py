@@ -20,8 +20,8 @@ class KoreanASRConfig:
     wav2vec2_model_name: str = "facebook/wav2vec2-base"  # base 모델로 변경
     wav2vec2_output_dim: int = 1000  # 어휘 크기
     
-    # Whisper 설정 (중간 크기 모델 사용)
-    whisper_model_name: str = "openai/whisper-small"  # small 모델로 변경 (244M)
+    # Whisper 설정 (더 작은 모델 사용)
+    whisper_model_name: str = "openai/whisper-base"  # base 모델로 변경 (74M)
     whisper_output_dim: int = 1000  # 어휘 크기
     
     # 앙상블 설정

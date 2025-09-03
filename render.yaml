@@ -15,7 +15,7 @@ services:
       - key: WAV2VEC2_MODEL_NAME
         value: facebook/wav2vec2-base
       - key: WHISPER_MODEL_NAME
-        value: openai/whisper-small
+        value: openai/whisper-base
       - key: AUDIO_WEIGHT
         value: 0.7
     disk:

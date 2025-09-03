@@ -53,14 +53,20 @@ pipeline_module = None
 
 
 def load_models_lazy():
-    """지연 로딩으로 모델 로드"""
+    """지연 로딩으로 모델 로드 - 안전한 버전"""
     global models_loaded, pipeline_module
     
     if models_loaded and pipeline_module:
         return pipeline_module
     
     try:
-        logger.info("🔄 Loading models (Lazy Loading)...")
+        logger.info("🔄 Loading models (Lazy Loading - Safe Mode)...")
+        
+        # 메모리 사용량 모니터링
+        import psutil
+        process = psutil.Process()
+        memory_before = process.memory_info().rss / 1024 / 1024  # MB
+        logger.info(f"📊 Memory before loading: {memory_before:.1f} MB")
         
         # 모델 로드
         try:
@@ -77,8 +83,17 @@ def load_models_lazy():
             spec.loader.exec_module(ec_module)
             pipeline_module = ec_module.infer_media_for_ec
         
+        # 메모리 사용량 확인
+        memory_after = process.memory_info().rss / 1024 / 1024  # MB
+        memory_increase = memory_after - memory_before
+        logger.info(f"📊 Memory after loading: {memory_after:.1f} MB (+{memory_increase:.1f} MB)")
+        
+        # 메모리 제한 확인 (400MB 이하로 제한)
+        if memory_after > 400:
+            logger.warning(f"⚠️ High memory usage: {memory_after:.1f} MB")
+        
         models_loaded = True
-        logger.info("✅ Models loaded successfully (Lazy Loading)")
+        logger.info("✅ Models loaded successfully (Lazy Loading - Safe Mode)")
         return pipeline_module
         
     except Exception as e:
