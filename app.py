@@ -49,20 +49,23 @@ logger = logging.getLogger(__name__)
 
 # 전역 변수
 models_loaded = False
+pipeline_module = None
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """애플리케이션 생명주기 관리"""
-    global models_loaded
+def load_models_lazy():
+    """지연 로딩으로 모델 로드"""
+    global models_loaded, pipeline_module
     
-    # 시작 시 모델 로드
-    logger.info("🚀 Starting Enhanced AV-ASR Server...")
+    if models_loaded and pipeline_module:
+        return pipeline_module
     
     try:
-        # 모델 로드 테스트 - 여러 방법 시도
+        logger.info("🔄 Loading models (Lazy Loading)...")
+        
+        # 모델 로드
         try:
             from server.pipeline.ec_integration_pipeline import infer_media_for_ec
+            pipeline_module = infer_media_for_ec
         except ImportError:
             # 대안 import 방법
             import importlib.util
@@ -72,20 +75,33 @@ async def lifespan(app: FastAPI):
             )
             ec_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(ec_module)
-            infer_media_for_ec = ec_module.infer_media_for_ec
+            pipeline_module = ec_module.infer_media_for_ec
         
         models_loaded = True
-        logger.info("✅ Enhanced AV-ASR Server started successfully")
+        logger.info("✅ Models loaded successfully (Lazy Loading)")
+        return pipeline_module
         
     except Exception as e:
-        logger.error(f"❌ Failed to start server: {e}")
-        logger.error(f"❌ Error details: {str(e)}")
+        logger.error(f"❌ Failed to load models: {e}")
         models_loaded = False
+        return None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리 - 지연 로딩"""
+    global models_loaded
+    
+    # 시작 시 모델 로드하지 않음 (지연 로딩)
+    logger.info("🚀 Starting Enhanced AV-ASR Server (Lazy Loading Mode)...")
+    models_loaded = False
     
     yield
     
     # 종료 시 정리
     logger.info("🛑 Shutting down Enhanced AV-ASR Server...")
+    if pipeline_module:
+        del pipeline_module
 
 
 # FastAPI 앱 생성
@@ -259,9 +275,12 @@ async def enhanced_infer(
             pass
         raise HTTPException(status_code=400, detail=f"매개변수 검증 실패: {e}")
     
-    # 4) Enhanced AV-ASR 추론 (기존 코드 사용)
+    # 4) Enhanced AV-ASR 추론 (지연 로딩 사용)
     try:
-        from server.pipeline.ec_integration_pipeline import infer_media_for_ec
+        # 지연 로딩으로 모델 로드
+        infer_media_for_ec = load_models_lazy()
+        if not infer_media_for_ec:
+            raise HTTPException(status_code=503, detail="모델 로드 실패")
         
         result = infer_media_for_ec(
             media_path_or_url=src_path,
