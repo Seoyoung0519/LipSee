@@ -36,6 +36,10 @@ AV_ASR/
 
 ## 📡 API 엔드포인트
 
+### **API 문서**
+- **웹 문서**: `https://av-asr.onrender.com/docs` - 간단한 HTML 기반 API 문서
+- **헬스 체크**: `https://av-asr.onrender.com/v1/health` - 시스템 상태 확인
+
 ### **1. Enhanced AV-ASR 추론** (`POST /v1/enhanced_infer`)
 
 #### **입력 파라미터**
@@ -277,8 +281,8 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
 #### **웹 UI (권장)**
 ```
-http://localhost:8000/docs    # Swagger UI
-http://localhost:8000/redoc   # ReDoc
+http://localhost:8000/docs    # HTML API 문서
+http://localhost:8000/v1/health  # 헬스 체크
 ```
 
 #### **명령줄 테스트**
