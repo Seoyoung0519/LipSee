@@ -19,7 +19,9 @@ from typing import Optional, Literal
 import uvicorn
 
 # 프로젝트 루트를 Python 경로에 추가
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+sys.path.insert(0, os.path.join(current_dir, 'server'))
 
 # 로깅 설정
 logging.basicConfig(
