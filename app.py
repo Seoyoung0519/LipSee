@@ -52,22 +52,15 @@ models_loaded = False
 pipeline_module = None
 
 
-def load_models_lazy():
-    """지연 로딩으로 모델 로드 - 안전한 버전"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """애플리케이션 생명주기 관리"""
     global models_loaded, pipeline_module
     
-    if models_loaded and pipeline_module:
-        return pipeline_module
+    # 시작 시 모델 로드
+    logger.info("🚀 Starting Enhanced AV-ASR Server...")
     
     try:
-        logger.info("🔄 Loading models (Lazy Loading - Safe Mode)...")
-        
-        # 메모리 사용량 모니터링
-        import psutil
-        process = psutil.Process()
-        memory_before = process.memory_info().rss / 1024 / 1024  # MB
-        logger.info(f"📊 Memory before loading: {memory_before:.1f} MB")
-        
         # 모델 로드
         try:
             from server.pipeline.ec_integration_pipeline import infer_media_for_ec
@@ -83,33 +76,13 @@ def load_models_lazy():
             spec.loader.exec_module(ec_module)
             pipeline_module = ec_module.infer_media_for_ec
         
-        # 메모리 사용량 확인
-        memory_after = process.memory_info().rss / 1024 / 1024  # MB
-        memory_increase = memory_after - memory_before
-        logger.info(f"📊 Memory after loading: {memory_after:.1f} MB (+{memory_increase:.1f} MB)")
-        
-        # 메모리 제한 확인 (400MB 이하로 제한)
-        if memory_after > 400:
-            logger.warning(f"⚠️ High memory usage: {memory_after:.1f} MB")
-        
         models_loaded = True
-        logger.info("✅ Models loaded successfully (Lazy Loading - Safe Mode)")
-        return pipeline_module
+        logger.info("✅ Enhanced AV-ASR Server started successfully")
         
     except Exception as e:
-        logger.error(f"❌ Failed to load models: {e}")
+        logger.error(f"❌ Failed to start server: {e}")
+        logger.error(f"❌ Error details: {str(e)}")
         models_loaded = False
-        return None
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """애플리케이션 생명주기 관리 - 지연 로딩"""
-    global models_loaded
-    
-    # 시작 시 모델 로드하지 않음 (지연 로딩)
-    logger.info("🚀 Starting Enhanced AV-ASR Server (Lazy Loading Mode)...")
-    models_loaded = False
     
     yield
     
@@ -290,14 +263,13 @@ async def enhanced_infer(
             pass
         raise HTTPException(status_code=400, detail=f"매개변수 검증 실패: {e}")
     
-    # 4) Enhanced AV-ASR 추론 (지연 로딩 사용)
+    # 4) Enhanced AV-ASR 추론
     try:
-        # 지연 로딩으로 모델 로드
-        infer_media_for_ec = load_models_lazy()
-        if not infer_media_for_ec:
-            raise HTTPException(status_code=503, detail="모델 로드 실패")
+        # 모델이 로드되었는지 확인
+        if not models_loaded or not pipeline_module:
+            raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
         
-        result = infer_media_for_ec(
+        result = pipeline_module(
             media_path_or_url=src_path,
             lang=language,
             audio_fusion_method=audio_fusion_method,

@@ -15,14 +15,14 @@ from dataclasses import dataclass, field
 
 @dataclass
 class KoreanASRConfig:
-    """한국어 ASR 모델 설정 (Wav2Vec2 + Whisper) - 메모리 최적화"""
-    # Wav2Vec2 설정 (더 작은 모델 사용)
-    wav2vec2_model_name: str = "facebook/wav2vec2-base"  # base 모델로 변경
-    wav2vec2_output_dim: int = 1000  # 어휘 크기
+    """한국어 ASR 모델 설정 (Wav2Vec2 + Whisper) - 최고 성능"""
+    # Wav2Vec2 설정 (대형 모델 사용)
+    wav2vec2_model_name: str = "kresnik/wav2vec2-large-xlsr-korean"  # large 모델로 변경
+    wav2vec2_output_dim: int = 1205  # 어휘 크기
     
-    # Whisper 설정 (더 작은 모델 사용)
-    whisper_model_name: str = "openai/whisper-base"  # base 모델로 변경 (74M)
-    whisper_output_dim: int = 1000  # 어휘 크기
+    # Whisper 설정 (대형 모델 사용)
+    whisper_model_name: str = "openai/whisper-large-v3"  # large 모델로 변경
+    whisper_output_dim: int = 1205  # 어휘 크기
     
     # 앙상블 설정
     ensemble_method: str = "longer_text"  # "longer_text", "confidence", "weighted"

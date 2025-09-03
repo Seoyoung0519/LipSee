@@ -13,9 +13,9 @@ services:
       - key: HF_HOME
         value: /tmp/huggingface
       - key: WAV2VEC2_MODEL_NAME
-        value: facebook/wav2vec2-base
+        value: kresnik/wav2vec2-large-xlsr-korean
       - key: WHISPER_MODEL_NAME
-        value: openai/whisper-base
+        value: openai/whisper-large-v3
       - key: AUDIO_WEIGHT
         value: 0.7
     disk:

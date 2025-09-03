@@ -5,13 +5,14 @@
 Enhanced AV-ASR (Audio-Visual Automatic Speech Recognition) 시스템은 **Wav2Vec2 + Whisper**의 오디오 융합을 통해 고품질 자막을 생성하고, EC(Error Correction) 모델과의 연동을 위한 상세한 출력을 제공합니다.
 
 ### 🎯 주요 특징
-- **오디오 융합**: Wav2Vec2 + Whisper
+- **최고 성능 모델**: Wav2Vec2-Large + Whisper-Large-v3
 - **앙상블 오디오 융합**: 가중 평균, 최대값, 적응형 융합 지원
 - **Enhanced CTC Decoder**: GELU 활성화, Beam Search (beam_size=5)
 - **한국어 특화**: 한국어 후처리 및 신뢰도 기반 필터링
 - **EC 모델 연동**: 토큰/단어별 상세 정보, n-best 후보, 프레임 엔트로피
 - **실시간 처리**: 25fps 프레임 기반 윈도우 처리
 - **✨ 25fps 적응형 자동 키워드 생성**: 신뢰도 기반 적응형 임계값, 동적 도메인 패턴, 프레임별 키워드 매핑
+- **즉시 로딩**: 서버 시작 시 모델 로드로 빠른 응답
 
 ## 🏗️ 프로젝트 구조
 
@@ -84,8 +85,8 @@ AV_ASR/
     "request_id": "req_20241226_143022_a1b2c3d4",
     "model_version": {
         "av_asr": "av-asr-0.9.4",
-        "audio_encoder": "wav2vec2-kspon-pt",
-        "audio_encoder2": "whisper-encoder-large-v3",
+        "audio_encoder": "wav2vec2-large-xlsr-korean",
+        "audio_encoder2": "whisper-large-v3",
         "visual_encoder": "removed",
         "ctc_decoder": "enhanced_beam_lm"
     },
@@ -96,14 +97,14 @@ AV_ASR/
     },
     "encoders": {
         "audio": {
-            "name": "wav2vec2",
-            "frame_hop_ms": 20,
-            "feat_dim": 768
-        },
-        "audio2": {
-            "name": "whisper-encoder",
+            "name": "wav2vec2-large-xlsr-korean",
             "frame_hop_ms": 20,
             "feat_dim": 1024
+        },
+        "audio2": {
+            "name": "whisper-large-v3",
+            "frame_hop_ms": 20,
+            "feat_dim": 1280
         },
         "visual": {
             "name": "removed",
@@ -211,12 +212,13 @@ AV_ASR/
         "mp4", "avi", "mov", "mkv", "wav", "m4a"
     ],
     "features": [
-        "앙상블 오디오 융합",
+        "Wav2Vec2-Large + Whisper-Large-v3 앙상블",
         "Enhanced CTC Decoder with GELU",
         "한국어 특화 후처리",
         "신뢰도 기반 필터링",
         "Beam search 최적화",
-        "EC 모델 연동용 출력"
+        "EC 모델 연동용 출력",
+        "즉시 모델 로딩으로 빠른 응답"
     ]
 }
 ```
@@ -234,18 +236,18 @@ AV_ASR/
     },
     "device": "cpu",
     "fps": 25,
-    "pipeline": "Enhanced AV-ASR: Wav2Vec2 + Whisper → Enhanced CTC + 25fps 적응형 키워드 생성",
+    "pipeline": "Enhanced AV-ASR: Wav2Vec2-Large + Whisper-Large-v3 → Enhanced CTC + 25fps 적응형 키워드 생성",
     "ec_model_ready": true,
     "swagger_optimized": true,
     "features": [
-        "앙상블 오디오 융합",
+        "Wav2Vec2-Large + Whisper-Large-v3 앙상블",
         "Enhanced CTC Decoder with GELU",
         "한국어 특화 후처리",
         "신뢰도 기반 필터링",
         "Beam search 최적화",
         "EC 모델 연동용 출력",
         "25fps 적응형 자동 키워드 생성",
-        "Swagger UI 성능 최적화"
+        "즉시 모델 로딩으로 빠른 응답"
     ]
 }
 ```
@@ -364,12 +366,12 @@ class CustomEncoder:
 
 ## 📝 변경 이력
 
-- **v0.9.4**: 🚀 **FastAPI 서버 구현 및 코드 정리**
-  - FastAPI 서버 구현 및 모듈화된 구조로 정리
+- **v0.9.4**: 🚀 **최고 성능 모델 및 즉시 로딩 구현**
+  - Wav2Vec2-Large + Whisper-Large-v3 최고 성능 모델 사용
+  - 서버 시작 시 즉시 모델 로딩으로 빠른 응답
   - EC 모델 연동용 출력 형식 완전 유지
   - 25fps 적응형 자동 키워드 생성 기능
-  - Swagger UI 성능 최적화
-  - 불필요한 파일 정리 및 구조 개선
+  - FastAPI 서버 구현 및 모듈화된 구조
 - **v0.9.3**: ✨ **25fps 적응형 자동 키워드 생성 기능 추가**
   - 적응형 임계값 계산 (대화 품질 기반 자동 조정)
   - 동적 도메인 패턴 생성 (실제 대화 내용 기반)
