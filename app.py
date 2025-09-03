@@ -23,6 +23,12 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 sys.path.insert(0, os.path.join(current_dir, 'server'))
 
+# Render 환경에서 경로 확인
+print(f"Current directory: {current_dir}")
+print(f"Python path: {sys.path}")
+print(f"Server directory exists: {os.path.exists(os.path.join(current_dir, 'server'))}")
+print(f"Models directory exists: {os.path.exists(os.path.join(current_dir, 'server', 'models'))}")
+
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
@@ -43,14 +49,26 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Enhanced AV-ASR Server...")
     
     try:
-        # 모델 로드 테스트
-        from server.pipeline.ec_integration_pipeline import infer_media_for_ec
-        models_loaded = True
+        # 모델 로드 테스트 - 여러 방법 시도
+        try:
+            from server.pipeline.ec_integration_pipeline import infer_media_for_ec
+        except ImportError:
+            # 대안 import 방법
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "ec_integration_pipeline", 
+                os.path.join(current_dir, "server", "pipeline", "ec_integration_pipeline.py")
+            )
+            ec_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ec_module)
+            infer_media_for_ec = ec_module.infer_media_for_ec
         
+        models_loaded = True
         logger.info("✅ Enhanced AV-ASR Server started successfully")
         
     except Exception as e:
         logger.error(f"❌ Failed to start server: {e}")
+        logger.error(f"❌ Error details: {str(e)}")
         models_loaded = False
     
     yield
