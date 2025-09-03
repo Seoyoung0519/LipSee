@@ -29,6 +29,17 @@ print(f"Python path: {sys.path}")
 print(f"Server directory exists: {os.path.exists(os.path.join(current_dir, 'server'))}")
 print(f"Models directory exists: {os.path.exists(os.path.join(current_dir, 'server', 'models'))}")
 
+# 디렉토리 구조 확인
+if os.path.exists(os.path.join(current_dir, 'server')):
+    server_contents = os.listdir(os.path.join(current_dir, 'server'))
+    print(f"Server directory contents: {server_contents}")
+    
+    if 'models' in server_contents:
+        models_contents = os.listdir(os.path.join(current_dir, 'server', 'models'))
+        print(f"Models directory contents: {models_contents}")
+    else:
+        print("Models directory not found in server folder")
+
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,

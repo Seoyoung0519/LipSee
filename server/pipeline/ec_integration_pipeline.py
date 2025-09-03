@@ -12,8 +12,13 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 import logging
 
-from ..models.wav2vec2_encoder import Wav2Vec2Encoder
-from ..models.whisper_encoder import WhisperEncoder
+try:
+    from ..models.wav2vec2_encoder import Wav2Vec2Encoder
+    from ..models.whisper_encoder import WhisperEncoder
+except ImportError:
+    # Render 환경에서 절대 import 시도
+    from server.models.wav2vec2_encoder import Wav2Vec2Encoder
+    from server.models.whisper_encoder import WhisperEncoder
 
 logger = logging.getLogger(__name__)
 
