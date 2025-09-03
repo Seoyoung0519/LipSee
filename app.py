@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse
 from typing import Optional, Literal
 import uvicorn
 
@@ -94,9 +94,9 @@ app = FastAPI(
     description="Enhanced AV-ASR (Audio-Visual Automatic Speech Recognition) 시스템",
     version="0.9.4",
     lifespan=lifespan,
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # CORS 미들웨어 설정
@@ -121,87 +121,7 @@ async def root():
     }
 
 
-@app.get("/docs")
-async def get_docs():
-    """API 문서 페이지"""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Enhanced AV-ASR API Documentation</title>
-        <meta charset="utf-8">
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-            .endpoint { background: #f4f4f4; padding: 15px; margin: 10px 0; border-radius: 5px; }
-            .method { font-weight: bold; color: #2c5aa0; }
-            .path { font-family: monospace; background: #e8e8e8; padding: 2px 5px; }
-            h1 { color: #333; }
-            h2 { color: #666; border-bottom: 2px solid #ddd; }
-            .status { color: green; font-weight: bold; }
-        </style>
-    </head>
-    <body>
-        <h1>Enhanced AV-ASR API Documentation</h1>
-        <p class="status">✅ 서버 상태: 정상 작동 중</p>
-        
-        <h2>API 엔드포인트</h2>
-        
-        <div class="endpoint">
-            <div class="method">GET</div>
-            <div class="path">/</div>
-            <p>시스템 기본 정보를 반환합니다.</p>
-        </div>
-        
-        <div class="endpoint">
-            <div class="method">GET</div>
-            <div class="path">/v1/health</div>
-            <p>시스템 상태와 모델 로드 상태를 확인합니다.</p>
-        </div>
-        
-        <div class="endpoint">
-            <div class="method">GET</div>
-            <div class="path">/v1/enhanced_info</div>
-            <p>Enhanced AV-ASR 시스템의 모델 정보와 설정을 반환합니다.</p>
-        </div>
-        
-        <div class="endpoint">
-            <div class="method">POST</div>
-            <div class="path">/v1/enhanced_infer</div>
-            <p>Enhanced AV-ASR 파이프라인을 사용하여 자막을 생성합니다.</p>
-            <p><strong>파라미터:</strong></p>
-            <ul>
-                <li>file: 영상/오디오 파일 (mp4, avi, mov, mkv, wav, m4a)</li>
-                <li>format: 출력 포맷 (json, srt, both)</li>
-                <li>language: 언어 (ko, en)</li>
-                <li>return_words: 단어 단위 정보 (true/false)</li>
-                <li>audio_fusion_method: 오디오 융합 방식 (weighted, max, adaptive, concat)</li>
-                <li>audio_fusion_alpha: 오디오 융합 가중치 (0.0~1.0)</li>
-            </ul>
-        </div>
-        
-        <h2>테스트 방법</h2>
-        <p>curl을 사용한 테스트 예시:</p>
-        <pre>
-# 헬스 체크
-curl https://av-asr.onrender.com/v1/health
 
-# Enhanced AV-ASR 추론
-curl -X POST "https://av-asr.onrender.com/v1/enhanced_infer" \\
-  -F "file=@video.mp4" \\
-  -F "audio_fusion_method=weighted" \\
-  -F "audio_fusion_alpha=0.6"
-        </pre>
-        
-        <h2>지원 형식</h2>
-        <ul>
-            <li><strong>입력:</strong> mp4, avi, mov, mkv, wav, m4a</li>
-            <li><strong>출력:</strong> json, srt, both (zip)</li>
-            <li><strong>언어:</strong> ko (한국어), en (영어)</li>
-        </ul>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
 
 
 @app.get("/v1/health")
