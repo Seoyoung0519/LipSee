@@ -18,16 +18,12 @@
 
 ## 👩‍💻 LipSee를 만든 사람들은 …
 
-| 사진 | <img src="https://github.com/user-attachments/assets/df0209b5-4da7-4a1f-a66c-e562722d4621" width="100"/>  | <img width="480" height="480" alt="Image" src="https://github.com/user-attachments/assets/8bbc5d8d-c618-4471-ae35-542fe712362c" /> |
+| 사진 | <img src="https://github.com/user-attachments/assets/df0209b5-4da7-4a1f-a66c-e562722d4621" width="150"/> | <img src="https://github.com/user-attachments/assets/8bbc5d8d-c618-4471-ae35-542fe712362c" width="150"/> |
 |------|------------------------|------------------------|
 | 이름 | 김예빈                 | 윤서영                 |
-| 담당 | - AV-ASR: Video Encoder  
-- Emotion Classification Model  
-- 시연 영상 제작 | - AV-ASR: Audio Encoder  
-- EC Model  
-- 통합 Orchestrator 서버 구축  
-- 서비스 소개 Web |
+| 담당 | - AV-ASR: Video Encoder<br>- Emotion Classification Model<br>- 시연 영상 제작 | - AV-ASR: Audio Encoder<br>- EC Model<br>- 통합 Orchestrator 서버 구축<br>- 서비스 소개 Web |
 
+---
 
 ## 🎥 시연 스냅샷
 
