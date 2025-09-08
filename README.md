@@ -18,8 +18,7 @@
 
 ## 👩‍💻 LipSee를 만든 사람들은 …
 
-| 사진 | ![김예빈](https://github.com/user-attachments/assets/ae308658-f326-4f59-82ae-c9e05560516e
-) | ![윤서영](https://github.com/user-attachments/assets/f7b2ce21-f5a8-4216-b467-089c2ff7dab4) |
+| 사진 | <img src="https://github.com/user-attachments/assets/df0209b5-4da7-4a1f-a66c-e562722d4621" width="100"/>  | <img width="480" height="480" alt="Image" src="https://github.com/user-attachments/assets/8bbc5d8d-c618-4471-ae35-542fe712362c" /> |
 |------|------------------------|------------------------|
 | 이름 | 김예빈                 | 윤서영                 |
 | 담당 | - AV-ASR: Video Encoder  
