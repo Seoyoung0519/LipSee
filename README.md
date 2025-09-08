@@ -25,9 +25,14 @@
 
 ---
 
+## 💻 Service 소개 WebSite
+📎 https://courageous-access-136102.framer.app/
+
+---
+
 ## 🎥 시연 스냅샷
 
-📎 *향후 스크린샷 또는 데모 영상 링크 삽입 예정*
+📎 https://www.youtube.com/watch?v=xst2gJr-60k
 
 ### [1차 : AV-ASR]
 
